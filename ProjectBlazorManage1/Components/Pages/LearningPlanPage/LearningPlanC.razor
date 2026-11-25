@@ -1,0 +1,350 @@
+﻿@page "/learningplan"
+@inject LearningPlanService LearningPlanService
+@inject ClassStudieService ClassStudiedService
+@inject TeacherService TeacherService
+@inject IJSRuntime JSRuntime
+
+<Modals @ref="LearningPlansModal"
+        Title="จัดการแผนการเรียน"
+        IsVisible="showModal"
+        OnConfirm="HandleValidSubmit"
+        OnClose="CloseModal">
+    <ChildContent>
+        <EditForm id="modalForm" Model="@currentLearningPlan" OnValidSubmit="@HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            @if (currentLearningPlan != null)
+            {
+                <MudGrid Class="my-2">
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker Label="วันที่เรียน"
+                                       @bind-Date="currentLearningPlan.Date"
+                                       DateFormat="dd MMMM yyyy"
+                                       Placeholder="เลือกวันที่"
+                                       Editable="true"
+                                       OpenTo="OpenTo.Date"
+                                       Variant="Variant.Outlined"
+                                       InputIcon="@Icons.Material.Filled.CalendarToday"
+                                       Clearable="true"
+                                       Class="w-100" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="เวลาเรียน"
+                                      Variant="Variant.Outlined"
+                                      @bind-Value="currentLearningPlan.Time"
+                                      For="@(() => currentLearningPlan.Time)"
+                                      RequiredError="เวลาเรียน" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="12">
+                        <MudTextField T="string"
+                                      Label="หัวข้อการเรียน"
+                                      Variant="Variant.Outlined"
+                                      @bind-Value="currentLearningPlan.Name"
+                                      For="@(() => currentLearningPlan.Name)"
+                                      RequiredError="หัวข้อการเรียน" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="เทป"
+                                      Variant="Variant.Outlined"
+                                      @bind-Value="currentLearningPlan.Tape"
+                                      For="@(() => currentLearningPlan.Tape)"
+                                      RequiredError="เทป" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="เล่มที่"
+                                      Variant="Variant.Outlined"
+                                      @bind-Value="currentLearningPlan.Book"
+                                      For="@(() => currentLearningPlan.Book)"
+                                      RequiredError="เล่มที่" />
+                    </MudItem>
+              
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="เลือกผู้สอน"
+                                   @bind-Value="currentLearningPlan.Teacher_ID"
+                                  Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="โปรดเลือกผู้สอน"
+                                   Dense="true"
+                                   Class="my-2">
+
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">--โปรดเลือกผู้สอน--</MudSelectItem>
+
+                            @foreach (var t in _teacher)
+                            {
+                                <MudSelectItem T="int?" Value="@( (int?)t.Teacher_Id )">
+                                    @t.Teacher_Name @t.Teacher_LastName
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int?" Label="เลือกรุ่น"
+                                   @bind-Value="currentLearningPlan.ClassStudiedId"
+                                   Required="true"
+                                   RequiredError="โปรดเลือกรุ่น"
+                                   Dense="true"
+                                   Variant="Variant.Outlined"
+                                   Class="my-2">
+
+                            <MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">--โปรดเลือกรุ่น--</MudSelectItem>
+
+                            @foreach (var t in _ClassStudied.Where(x => x.Status))
+                            {
+                                <MudSelectItem T="int?" Value="@( (int?)t.Id )">@t.Id</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            }
+        </EditForm>
+    </ChildContent>
+</Modals>
+
+@if (IsProcessing)
+{
+    <div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+        <div class="spinner">
+            <div class="rect1"></div>
+            <div class="rect2"></div>
+            <div class="rect3"></div>
+            <div class="rect4"></div>
+            <div class="rect5"></div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow border-0 mt-4">
+        <div class="card-header bg-black bg-gradient ml-0 py-3">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <h2 class="text-white py-2">ระบบจัดการข้อมูลแผนการเรียน</h2>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <MudDataGrid T="LearningPlan"
+                         Items="@FilteredLearningPlans"
+                         SortMode="SortMode.Multiple"
+                         Filterable="true"
+                         Hover="true"
+                         Dense="true"
+                         Bordered="true"
+                         Striped="true"
+                         Elevation="2"
+                         Class="custom-datagrid mt-4"
+                        >
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">
+                        ระบบจัดการข้อมูลแผนการเรียน
+                    </MudText>
+                    <MudSpacer />
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+
+                        <MudSelect T="int?" Label="เลือกรุ่น" @bind-Value="selectedClassStudiedId" Dense="true"
+                                   Style="min-width: 150px;" Margin="Margin.Dense">
+                            <MudSelectItem T="int?" Value="@(null)">ทั้งหมด</MudSelectItem>
+                            @foreach (var c in _ClassStudied.Where(c => c.Status))
+                            {
+                                <MudSelectItem T="int?" Value="@c.Id">@c.Id</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudTextField T="string" @bind-Value="searchString"
+                                      Placeholder="ค้นหา..."
+                                      Variant="Variant.Outlined"
+                                      Size="Size.Small"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true"
+                                      DebounceInterval="5000"
+                                      Style="width: 250px; font-size: 0.875rem;"
+                                      Margin="Margin.Dense" />
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ShowAddModal"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   Style="min-width: 160px;">
+                            เพิ่มข้อมูลแผนการเรียน
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Href="upload-excel"
+                                   StartIcon="@Icons.Material.Filled.UploadFile"
+                                   Style="min-width: 160px;">
+                            อัปโหลด Excel
+                        </MudButton>
+
+                    </div>
+
+                </ToolBarContent>
+
+                <Columns>
+                    <TemplateColumn Title="วันที่เรียน">
+                        <CellTemplate>
+                            @(context.Item.Date.HasValue
+                                ? context.Item.Date.Value.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))
+                                : "")
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Time" Title="เวลาเรียน" />
+                    <PropertyColumn Property="x => x.Name" Title="หัวข้อการเรียน" />
+                    <TemplateColumn Title="ผู้สอน">
+                        <CellTemplate>
+                            @($"{context.Item.teacher?.Teacher_Name} {context.Item.teacher?.Teacher_LastName}")
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.ClassStudiedId" Title="รุ่นที่เรียน" />
+                    <TemplateColumn Title="การจัดการ">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => ShowEditModal(context.Item))">
+                                    แก้ไข
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="@(() => Delete(context.Item.Id))">
+                                    ลบ
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <PagerContent>
+                    <MudDataGridPager T="LearningPlan" />
+                </PagerContent>
+            </MudDataGrid>
+        </div>
+    </div>
+}
+
+@code {
+    private List<LearningPlan> learningPlansList = new();
+    private List<Teacher> _teacher = new();
+    private List<ClassStudied> _ClassStudied = new();
+
+    private Modals LearningPlansModal;
+    private bool showModal = false;
+    private bool IsProcessing { get; set; } = true;
+    private LearningPlan currentLearningPlan = new();
+    private bool isEditMode = false;
+
+    private string searchString = string.Empty;
+    private int? selectedClassStudiedId = null;
+
+    private IEnumerable<LearningPlan> FilteredLearningPlans =>
+        learningPlansList
+        .Where(lp =>
+            (!selectedClassStudiedId.HasValue || lp.ClassStudiedId == selectedClassStudiedId) &&
+            (string.IsNullOrWhiteSpace(searchString.Trim()) ||
+                (lp.Name?.Trim().Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (lp.teacher?.Teacher_Name?.Trim().Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (lp.teacher?.Teacher_LastName?.Trim().Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (lp.ClassStudied?.ClassName?.Trim().Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+                lp.ClassStudiedId.ToString().Trim().Contains(searchString.Trim())))
+        .OrderByDescending(lp => lp.ClassStudiedId)
+        .ThenBy(lp => lp.Date);
+        
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadLearningPlan();
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadLearningPlan()
+    {
+        learningPlansList = await LearningPlanService.GetAllAsync(); // make sure this includes teacher & class
+        _teacher = await TeacherService.GetAllTeachers();
+        _ClassStudied = await ClassStudiedService.GetClassStudies();
+    }
+
+    private void ShowAddModal()
+    {
+        currentLearningPlan = new LearningPlan();
+        isEditMode = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(LearningPlan learningPlan)
+    {
+        currentLearningPlan = new LearningPlan
+            {
+                Id = learningPlan.Id,
+                Date = learningPlan.Date,
+                Time = learningPlan.Time,
+                Name = learningPlan.Name,
+                Tape = learningPlan.Tape,
+                Book = learningPlan.Book,
+                Score = learningPlan.Score,
+                Teacher_ID = learningPlan.Teacher_ID,
+                ClassStudiedId = learningPlan.ClassStudiedId,
+                Status = learningPlan.Status
+            };
+        isEditMode = true;
+        showModal = true;
+    }
+
+    private void CloseModal() => showModal = false;
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            IsProcessing = true;
+            var result = await LearningPlanService.SaveLearningPlan(currentLearningPlan, forceSave: false);
+
+            if (!result.Success && result.Message.Contains("เคยสอนหัวข้อนี้แล้ว"))
+            {
+                bool confirm = await JSRuntime.InvokeAsync<bool>("ShowSwal", "confirm", result.Message);
+                if (confirm)
+                {
+                    var result2 = await LearningPlanService.SaveLearningPlan(currentLearningPlan, forceSave: true);
+                    await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", result2.Message);
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("showToastr", "info", "ยกเลิกการบันทึก");
+                    return;
+                }
+            }
+            else
+            {
+                await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", result.Message);
+            }
+
+            await LoadLearningPlan();
+            showModal = false;
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    public async Task Delete(int id)
+    {
+        bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบหรือไม่?");
+        if (confirmDelete)
+        {
+            await LearningPlanService.DeleteAsync(id);
+            await JSRuntime.InvokeVoidAsync("ShowSwal", "test", "ลบสำเร็จ");
+            await LoadLearningPlan();
+        }
+    }
+}

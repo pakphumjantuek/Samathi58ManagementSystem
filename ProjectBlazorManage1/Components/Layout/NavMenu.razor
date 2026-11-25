@@ -1,0 +1,105 @@
+﻿@implements IDisposable
+@inject NavigationManager NavigationManager
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h3>ระบบจัดการแอดมิน</h3>
+    </div>
+
+    <div class="sidebar-menu">
+        <nav>
+            <NavLink class="sidebar-item" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill" aria-hidden="true"></i> <span>หน้าแรก</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="chart" Match="NavLinkMatch.All">
+                <i class="bi bi-graph-up-arrow" aria-hidden="true"></i> <span>รายงานข้อมูล</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="role" Match="NavLinkMatch.All">
+                <i class="bi bi-person-gear" aria-hidden="true"></i> <span>บทบาท</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="users" Match="NavLinkMatch.All">
+                <i class="bi bi-people-fill" aria-hidden="true"></i> <span>ผู้ใช้งาน</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="Branch" Match="NavLinkMatch.All">
+                <i class="bi bi-diagram-3-fill" aria-hidden="true"></i> <span>สาขา</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="Initial" Match="NavLinkMatch.All">
+                <i class="bi bi-person-vcard" aria-hidden="true"></i> <span>คำนำหน้าชื่อ</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="JobPosition" Match="NavLinkMatch.All">
+                <i class="bi bi-briefcase-fill" aria-hidden="true"></i> <span>ตำแหน่งงาน</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="CourseName" Match="NavLinkMatch.All">
+                <i class="bi bi-journal-bookmark-fill" aria-hidden="true"></i> <span>หลักสูตร</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="Teacher" Match="NavLinkMatch.All">
+                <i class="bi bi-person-workspace" aria-hidden="true"></i> <span>อาจารย์จริยสา</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="ClassStudie" Match="NavLinkMatch.All">
+                <i class="bi bi-mortarboard-fill" aria-hidden="true"></i> <span>รุ่น</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="learningplan" Match="NavLinkMatch.All">
+                <i class="bi bi-calendar3" aria-hidden="true"></i> <span>แผนการเรียน</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="student" Match="NavLinkMatch.All">
+                <i class="bi bi-person-badge" aria-hidden="true"></i> <span>นักศึกษา</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="Personnel" Match="NavLinkMatch.All">
+                <i class="bi bi-person-lines-fill" aria-hidden="true"></i> <span>บุคลากร</span>
+            </NavLink>
+            <NavLink class="sidebar-item" href="News" Match="NavLinkMatch.All">
+                <i class="bi bi-newspaper" aria-hidden="true"></i> <span>ข่าวสาร</span>
+            </NavLink>
+
+            <div class="auth-section">
+                <AuthorizeView>
+                    <Authorized>
+                        <NavLink class="sidebar-item" href="Account/Manage">
+                            <i class="bi bi-person-fill" aria-hidden="true"></i> <span>@context.User.Identity?.Name</span>
+                        </NavLink>
+                        <form action="Account/Logout" method="post">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                            <button type="submit" class="sidebar-item logout-btn">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i> <span>ออกจากระบบ</span>
+                            </button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <NavLink class="sidebar-item" href="Account/Register">
+                            <i class="bi bi-person-plus" aria-hidden="true"></i> <span>ลงทะเบียน</span>
+                        </NavLink>
+                        <NavLink class="sidebar-item" href="Account/Login">
+                            <i clasSs="bi bi-box-arrow-in-right" aria-hidden="true"></i> <span>เข้าสู่ระบบ</span>
+                        </NavLink>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </nav>
+    </div>
+</div>
+
+<style>
+    
+</style>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

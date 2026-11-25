@@ -1,0 +1,152 @@
+﻿@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using ProjectBlazorManage1.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>เข้าสู่ระบบ</PageTitle>
+
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<style>
+    body {
+        font-family: 'Sarabun', sans-serif;
+        background-color: var(--bs-body-bg);
+        color: var(--bs-body-color);
+    }
+
+    .card {
+        border-radius: 1rem;
+    }
+
+    .form-control::placeholder {
+        color: #aaa;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow border-0 bg-light-subtle dark:bg-dark text-dark-subtle dark:text-light">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">
+                        🔐 เข้าสู่ระบบ
+                    </h2>
+                    <StatusMessage Message="@errorMessage" />
+                    <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="Input.Email" class="form-control" placeholder="name@example.com" />
+                            <label>อีเมล</label>
+                            <ValidationMessage For="() => Input.Email" class="text-danger small" />
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="Input.Password" class="form-control" placeholder="password" id="passwordField" />
+                            <label for="passwordField">รหัสผ่าน</label>
+                            <ValidationMessage For="() => Input.Password" class="text-danger small" />
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <InputCheckbox @bind-Value="Input.RememberMe" class="form-check-input" id="rememberMeCheck" />
+                            <label class="form-check-label" for="rememberMeCheck">
+                                จำการเข้าสู่ระบบ
+                            </label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2">
+                            เข้าสู่ระบบ
+                        </button>
+                    </EditForm>
+
+                    <hr class="my-4" />
+                    <div class="text-center mt-4">
+                        <p class="fw-semibold text-dark-emphasis fs-6">
+                            ยังไม่มีบัญชีใช่ไหม?
+                        </p>
+                        <a class="btn btn-outline-dark btn-sm px-4" href="/">
+                            🏠 กลับ
+                        </a>
+                        <a class="btn btn-outline-primary btn-sm px-4"
+                           href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">
+                            👉 ลงทะเบียนที่นี่
+                        </a>
+                       
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? errorMessage;
+    private string passwordInputType = "password";
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo("Account/LoginWith2fa", new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "❌ ล็อกอินไม่สำเร็จ กรุณาตรวจสอบอีเมลหรือรหัสผ่านอีกครั้ง";
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        passwordInputType = passwordInputType == "password" ? "text" : "password";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "กรุณากรอกอีเมล")]
+        [EmailAddress(ErrorMessage = "รูปแบบอีเมลไม่ถูกต้อง")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "กรุณากรอกรหัสผ่าน")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "จำการเข้าสู่ระบบ")]
+        public bool RememberMe { get; set; }
+    }
+}

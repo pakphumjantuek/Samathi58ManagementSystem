@@ -1,0 +1,692 @@
+﻿@page "/Teacher"
+@inject IJSRuntime JSRuntime
+@inject TeacherService teacherService
+@inject InitialService initialService
+@inject JobPositionService jobPositionService
+@inject BranchService branchService
+@inject CourseNameService courseNameService
+@inject DhammaCourseService dhammaCourseService
+@inject IWebHostEnvironment _webHostEnvironment
+@inject NavigationManager NavigationManager
+
+
+<Modals @ref="TeacherModal"
+		Title="ระบบจัดการข้อมูลผู้สอน"
+		IsVisible="showModal"
+		OnConfirm="HandleValidSubmit"
+		OnClose="CloseModal"
+		Size="modal-xl">
+
+	<ChildContent>
+		<EditForm id="modalForm" Model="@currentTeacher" OnValidSubmit="@HandleValidSubmit">
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+
+			@if (currentTeacher != null)
+			{
+
+
+				<MudGrid>
+					<MudItem xs="4">
+						<MudSelect T="int"
+								   Label="คำนำหน้าชื่อ"
+								   							   Variant="Variant.Outlined"
+								   @bind-Value="currentTeacher.Initial_Id"
+								   Required="true"
+								   RequiredError="โปรดเลือกคำนำหน้าชื่อ"
+								   Dense="true"
+								   Class="my-2">
+							<MudSelectItem Value="0" Disabled="true">--โปรดเลือกคำนำหน้าชื่อ--</MudSelectItem>
+							@foreach (var initial in _initial)
+							{
+								<MudSelectItem Value="@initial.Initial_Id">@initial.Initial_Name</MudSelectItem>
+							}
+						</MudSelect>
+					</MudItem>
+					<MudItem xs="4">
+						<MudTextField T="string"
+									  Label="ชื่อ"
+									  Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Teacher_Name"
+									  For="@(() => currentTeacher.Teacher_Name)"
+									  RequiredError="กรุณากรอกชื่อ" />
+					</MudItem>
+					<MudItem xs="4">
+						<MudTextField T="string"
+									  Label="นามสกุล"
+									  							   Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Teacher_LastName"
+									  For="@(() => currentTeacher.Teacher_LastName)"
+									  RequiredError="กรุณากรอกนามสกุล" />
+					</MudItem>
+				</MudGrid>
+
+				<MudGrid>
+					<MudItem xs="6">
+						<MudTextField T="string"
+									  Label="เบอร์โทรศัพท์"
+									  Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Phone_Number"
+									  MaxLength=10
+									  For="@(() => currentTeacher.Phone_Number)"
+									  RequiredError="กรุณากรอกเบอร์โทรศัพท์" />
+					</MudItem>
+					<MudItem xs="6">
+						<MudTextField T="string"
+									  Label="ทักษะพิเศษ"
+									  							   Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Special_Skill"
+									  For="@(() => currentTeacher.Special_Skill)"
+									  RequiredError="กรุณากรอกทักษะพิเศษ" />
+					</MudItem>
+				</MudGrid>
+
+
+				<MudTextField T="string"
+							  Label="ที่อยู่ปัจจุบัน"
+							  							   Variant="Variant.Outlined"
+							  @bind-Value="currentTeacher.Address"
+							  Lines="5"
+							  For="@(() => currentTeacher.Address)"
+							  RequiredError="กรุณากรอกที่อยู่ปัจจุบัน" />
+
+				<MudGrid>
+					<MudItem xs="6">
+						<MudTextField T="string"
+									  Label="อาชีพปัจจุบัน"
+									  							   Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Occupation"
+									  For="@(() => currentTeacher.Occupation)"
+									  RequiredError="กรุณากรอกอาชีพปัจจุบัน" />
+					</MudItem>
+					<MudItem xs="6">
+						<MudTextField T="string"
+									  Label="ตำเเหน่งงานเพิ่มเติม"
+									  							   Variant="Variant.Outlined"
+									  @bind-Value="currentTeacher.Position_detail"
+									  For="@(() => currentTeacher.Position_detail)"
+									  RequiredError="กรุณากรอกตำเเหน่งงานเพิ่มเติม" />
+					</MudItem>
+				</MudGrid>
+
+
+				<MudGrid>
+					<MudItem xs="6">
+						<MudSelect T="int?" Label="โปรดเลือกสาขา"
+													   Variant="Variant.Outlined"
+								   @bind-Value="currentTeacher.Branch_Id"
+								   Required="true"
+								   RequiredError="โปรดเลือกสาขา"
+								   Dense="true"
+								   Class="my-2">
+
+							<MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">--โปรดเลือกสาขา--</MudSelectItem>
+
+							@foreach (var branch in _branch)
+							{
+								<MudSelectItem T="int?" Value="@branch.Branch_Id">@branch.Branch_Name</MudSelectItem>
+							}
+						</MudSelect>
+					</MudItem>
+					<MudItem xs="6">
+						<MudSelect T="int?" Label="โปรดเลือกตำเเหน่งงานในสถาบัน"
+													   Variant="Variant.Outlined"
+								   @bind-Value="currentTeacher.JobPosition_Id"
+								   Required="true"
+								   RequiredError="โปรดเลือกตำเเหน่งงานในสถาบัน"
+								   Dense="true"
+								   Class="my-2">
+
+							<MudSelectItem T="int?" Value="@((int?)null)" Disabled="true">--โปรดเลือกสาขา--</MudSelectItem>
+
+							@foreach (var job in _jobps)
+							{
+								<MudSelectItem T="int?" Value="@job.Id">@job.Position_Name</MudSelectItem>
+							}
+						</MudSelect>
+					</MudItem>
+				</MudGrid>
+
+				<MudFileUpload T="IBrowserFile"
+							   FilesChanged="LoadFiles"
+							   Accept=".jpg,.jpeg,.png"
+							   MaxFiles="1"
+							   Multiple="false">
+					<ActivatorContent>
+						<MudButton Variant="Variant.Filled"
+								   Color="Color.Primary"
+								   StartIcon="@Icons.Material.Filled.CloudUpload">
+							อัพโหลดรูปภาพ
+						</MudButton>
+					</ActivatorContent>
+				</MudFileUpload>
+
+				@if (!string.IsNullOrEmpty(GetImageUrl()))
+				{
+					<div class="mt-1 position-relative" style="width:100px; height:100px;">
+						<img src="@GetImageUrl()"
+							 style="width:100%; height:100%; object-fit:cover; border:1px solid #ccc; padding:5px; border-radius:5px;" />
+						<MudIconButton Icon="@Icons.Material.Filled.Delete"
+									   Color="Color.Error"
+									   Class="position-absolute top-0 end-0"
+									   Size="Size.Small"
+									   OnClick="@(() => DeleteImage(GetImageUrl()))" />
+					</div>
+				}
+			}
+		</EditForm>
+	</ChildContent>
+</Modals>
+
+@if (IsProcessing)
+{
+	<div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+		<div class="spinner">
+			<div class="rect1"></div>
+			<div class="rect2"></div>
+			<div class="rect3"></div>
+			<div class="rect4"></div>
+			<div class="rect5"></div>
+		</div>
+	</div>
+}
+else
+{
+	<div class="card shadow border-0 mt-4">
+		<div class="card-header bg-black bg-gradient ml-0 py-3">
+			<div class="row">
+				<div class="col-12 text-center">
+					<h2 class="text-white py-2">ระบบจัดการข้อมูลอาจารย์จริยา</h2>
+				</div>
+			</div>
+		</div>
+		<div class="card-body p-4">
+			<div class="text-end">
+				@if (selectedCourseId == 0)
+				{
+
+					<button @onclick="ExportToPdf" class="btn btn-danger shadow-sm">
+						<i class="bi bi-file-earmark-pdf-fill me-2"></i>Export PDF ทั้งหมด
+					</button>
+				}
+				else
+				{
+					<button @onclick="ExportCoursePdf" disabled="@(selectedCourseId == 0 )" class="btn btn-danger shadow-sm">
+
+						<i class="bi bi-file-earmark-pdf-fill me-2"></i>
+						Export PDF หลักสูตร
+					</button>
+					<button @onclick="ExportToExcel" disabled="@(selectedCourseId == 0 )" class="btn btn-success shadow-sm">
+
+						<i class="bi bi-file-earmark-pdf-fill me-2"></i>
+						Export Excel หลักสูตร
+					</button>
+				}
+			</div>
+
+			<MudDataGrid T="Teacher"
+						 Items="@filteredTeachers"
+						 SortMode="SortMode.Multiple"
+						 Filterable="true"
+						 Hover="true"
+						 Elevation="2"
+						 Dense="true"
+						 Bordered="true"
+						 Striped="true"
+						 RowClick="@(args => ShowEditModal(args.Item))"
+						 Class="custom-datagrid mt-4">
+
+				<ToolBarContent>
+					<MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">ระบบจัดการข้อมูลอาจารย์จริยา</MudText>
+					<MudSpacer />
+
+					<div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;">
+						<!-- Dropdown: เลือกหลักสูตร -->
+						<MudSelect T="int" Label="เลือกหลักสูตร" Value="@selectedCourseId" ValueChanged="OnCourseSelected"
+								   Style="min-width: 200px;">
+							<MudSelectItem Value="0">ทั้งหมด</MudSelectItem>
+							@foreach (var course in courseList.Where(c => c.Status))
+							{
+								<MudSelectItem Value="@course.Id">@course.Name</MudSelectItem>
+							}
+						</MudSelect>
+						<MudTextField @bind-Value="searchString"
+									  Placeholder="ค้นหา..."
+									  Variant="Variant.Outlined"
+									  Size="Size.Small"
+									  Adornment="Adornment.Start"
+									  AdornmentIcon="@Icons.Material.Filled.Search"
+									  Class="mr-2"
+									  Immediate="true"
+									  DebounceInterval="3000"
+									  Style="width: 300px; font-size: 0.875rem;"
+									  Margin="Margin.Dense" />
+						<MudButton Variant="Variant.Filled"
+								   Color="Color.Secondary"
+								   StartIcon="@Icons.Material.Filled.Add"
+								   OnClick="ShowAddModal"
+								   Size="Size.Medium"
+								   Class="ms-2">
+							เพิ่มข้อมูลอาจารย์จริยา
+						</MudButton>
+					</div>
+				</ToolBarContent>
+
+				<Columns>
+					<TemplateColumn Title="ชื่อ-นามสกุล"
+									CellStyle="font-size: 14px;">
+						<CellTemplate>
+							@($"{context.Item.Teacher_Name} {context.Item.Teacher_LastName}")
+						</CellTemplate>
+					</TemplateColumn>
+
+					<PropertyColumn Property="x => x.Phone_Number"
+									Title="เบอร์โทรศัพท์"
+									Filterable="true"
+									Sortable="true"
+									CellStyle="font-size: 14px;" />
+
+					<TemplateColumn Title="รายละเอียด"
+									Sortable="false"
+									CellStyle="text-align:center;">
+						<CellTemplate>
+							<div @onclick:stopPropagation>
+
+								<MudButton Variant="Variant.Outlined"
+										   Color="Color.Primary"
+										   Size="Size.Small"
+										   Href="@($"Teacher/Teacher_Detail/{context.Item.Teacher_Id}")">
+									รายละเอียด
+								</MudButton>
+							</div>
+
+						</CellTemplate>
+					</TemplateColumn>
+
+					<TemplateColumn Title="การจัดการ"
+									Sortable="false"
+									CellClass="action-column">
+						<CellTemplate>
+							<MudStack Row="true" Spacing="2">
+								<MudButton Variant="Variant.Outlined"
+										   Color="Color.Primary"
+										   Size="Size.Small"
+										   StartIcon="@Icons.Material.Filled.Edit"
+										   OnClick="@(() => ShowEditModal(context.Item))">
+									แก้ไข
+								</MudButton>
+								<MudButton Variant="Variant.Outlined"
+										   Color="Color.Error"
+										   Size="Size.Small"
+										   StartIcon="@Icons.Material.Filled.Delete"
+										   OnClick="@(() => DeleteTeacher(context.Item.Teacher_Id))">
+									ลบ
+								</MudButton>
+							</MudStack>
+						</CellTemplate>
+					</TemplateColumn>
+				</Columns>
+
+				<PagerContent>
+					<MudDataGridPager T="Teacher" />
+				</PagerContent>
+			</MudDataGrid>
+
+			<!-- แสดงจำนวนอาจารย์ -->
+			<div class="mt-3">
+				<h5>จำนวนอาจารย์จริยา: @filteredTeachers.Count คน</h5>
+
+
+			</div>
+			<hr class="my-5" />
+		</div>
+	</div>
+}
+
+@code {
+	private List<Teacher> teachersList = new();
+	private List<CourseName> courseList = new();
+	private List<Teacher> filteredTeachers = new();
+	private List<DhammaCourse> courseEnrollments = new();
+	private bool IsProcessing { get; set; } = true;
+	private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+	private int selectedCourseId = 0;
+
+	private IEnumerable<Initial> _initial = new List<Initial>();
+	private IEnumerable<Branch> _branch = new List<Branch>();
+	private IEnumerable<JobPosition> _jobps = new List<JobPosition>();
+
+	private Modals TeacherModal;
+	private bool showModal = false;
+	private Teacher currentTeacher = new();
+	private bool isEditMode = false;
+
+	private string? _directoryPath { get; set; }
+	private IBrowserFile? _selectedFile { get; set; }
+	private string? _previewImage { get; set; }
+
+	private string _searchString = string.Empty;
+	private string searchString
+	{
+		get => _searchString;
+		set
+		{
+			if (_searchString != value)
+			{
+				_searchString = value;
+				UpdateFilteredTeachers();
+			}
+		}
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadData();
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+	protected override Task OnInitializedAsync()
+	{
+		_directoryPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "Teacher");
+		return base.OnInitializedAsync();
+	}
+
+	private async Task LoadData()
+	{
+		teachersList = await teacherService.GetAllTeachers();
+		courseList = await courseNameService.GetAllCourseNames();
+		courseEnrollments = await dhammaCourseService.GetallDhama();
+		_initial = await initialService.GetInitials();
+		_branch = await branchService.GetBranches();
+		_jobps = await jobPositionService.GetJobPS();
+
+		// แสดงอาจารย์ทั้งหมดเมื่อเริ่มต้น
+		UpdateFilteredTeachers();
+	}
+
+	private async Task ExportToPdf()
+	{
+		var pdfBytes = await teacherService.GenerateCourse();
+		var base64 = Convert.ToBase64String(pdfBytes);
+		await JSRuntime.InvokeVoidAsync("downloadPdfFile", base64, "ประวัติหลักสูตร.pdf");
+	}
+
+	private async Task ExportToExcel()
+	{
+		try
+		{
+			var excelData = await teacherService.GenerateExcel(selectedCourseId);
+			var base64ExcelData = Convert.ToBase64String(excelData);
+			await JSRuntime.InvokeVoidAsync("downloadExcelFile", excelData, $"ตารางเรียนEXCELรุ่นที่ {selectedCourseId}.xlsx");
+		}
+		catch (Exception ex)
+		{
+			Console.Error.WriteLine($"Error exporting Excel: {ex.Message}");
+		}
+	}
+
+	private async Task ExportCoursePdf()
+	{
+		if (selectedCourseId == 0) return;
+
+		var pdfBytes = await teacherService.GenerateCoursePdfByCourseId(selectedCourseId);
+		var base64 = Convert.ToBase64String(pdfBytes);
+		await JSRuntime.InvokeVoidAsync("downloadPdfFile", base64, $"รายงานหลักสูตร_{selectedCourseId}.pdf");
+	}
+
+	private async Task OnCourseSelected(int courseId)
+	{
+		selectedCourseId = courseId;
+		UpdateFilteredTeachers();
+	}
+
+	private void UpdateFilteredTeachers()
+	{
+		IEnumerable<Teacher> baseList;
+
+		// Step 1: กรองจากหลักสูตร
+		if (selectedCourseId == 0)
+		{
+			baseList = teachersList;
+		}
+		else
+		{
+			var teacherIds = courseEnrollments
+				.Where(c => c.CourseName_Id == selectedCourseId)
+				.Select(c => c.TeacherId)
+				.Distinct()
+				.ToHashSet();
+
+			baseList = teachersList
+				.Where(t => teacherIds.Contains(t.Teacher_Id));
+		}
+
+		// Step 2: กรองจากคำค้นหา
+		filteredTeachers = baseList
+			.Where(x =>
+				string.IsNullOrWhiteSpace(searchString) ||
+				x.Teacher_Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+				x.Teacher_LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+				x.Phone_Number.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+			.OrderBy(x => x.Teacher_Id)
+			.ToList();
+
+		StateHasChanged();
+	}
+
+	private void ShowAddModal()
+	{
+		currentTeacher = new Teacher();
+		isEditMode = false;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void ShowEditModal(Teacher teacher)
+	{
+		currentTeacher = new Teacher
+			{
+				Teacher_Id = teacher.Teacher_Id,
+				Teacher_Name = teacher.Teacher_Name,
+				Teacher_LastName = teacher.Teacher_LastName,
+				Phone_Number = teacher.Phone_Number,
+				Address = teacher.Address,
+				Images = teacher.Images,
+				Occupation = teacher.Occupation,
+				Initial_Id = teacher.Initial_Id,
+				Branch_Id = teacher.Branch_Id,
+				JobPosition_Id = teacher.JobPosition_Id,
+				Position_detail = teacher.Position_detail,
+				Special_Skill = teacher.Special_Skill,
+			};
+		isEditMode = true;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void CloseModal()
+	{
+		showModal = false;
+		_selectedFile = null;
+		_previewImage = null;
+		StateHasChanged();
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			IsProcessing = true;
+
+			if (_selectedFile != null)
+			{
+
+				await SaveImages();
+			}
+
+			if (isEditMode)
+			{
+				await teacherService.UpdateTeacher(currentTeacher);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "อัพเดทสำเร็จ");
+			}
+			else
+			{
+				await teacherService.AddTeacher(currentTeacher);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "เพิ่มสำเร็จ");
+			}
+
+			_selectedFile = null;
+			_previewImage = null;
+			await LoadData();
+			showModal = false;
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+		finally
+		{
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+	public async Task SaveImages()
+	{
+		if (!string.IsNullOrWhiteSpace(currentTeacher.Images))
+		{
+			var oldFile = Path.GetFileName(currentTeacher.Images);
+			var oldFilePath = Path.Combine(_directoryPath, oldFile);
+			if (File.Exists(oldFilePath))
+			{
+				File.Delete(oldFilePath);
+			}
+		}
+
+		var extension = Path.GetExtension(_selectedFile.Name);
+		var newFileName = $"{Guid.NewGuid()}{extension}";
+		var fullPath = Path.Combine(_directoryPath, newFileName);
+
+
+		if (!Directory.Exists(_directoryPath))
+		{
+			Directory.CreateDirectory(_directoryPath);
+		}
+
+
+		long maxAllowedSize = 10 * 1024 * 1024;
+		await using FileStream fileStream = new(fullPath, FileMode.Create);
+		await _selectedFile.OpenReadStream(maxAllowedSize).CopyToAsync(fileStream);
+
+		currentTeacher.Images = $"/images/Teacher/{newFileName}";
+	}
+
+	public async Task DeleteTeacher(int id)
+	{
+		bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบหรือไม่?");
+
+		if (confirmDelete)
+		{
+			await teacherService.DeleteTeacher(id);
+
+			await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบสำเร็จ");
+		}
+		await LoadData();
+	}
+
+	private string GetImageUrl()
+	{
+		if (!string.IsNullOrEmpty(_previewImage))
+		{
+			return _previewImage;
+		}
+
+		// ตรวจสอบว่า currentStudents และ Images มีค่าไม่ใช่ Null และไม่ว่าง
+		if (currentTeacher != null && !string.IsNullOrEmpty(currentTeacher.Images))
+		{
+			var fileName = Path.GetFileName(currentTeacher.Images);
+
+			// ตรวจสอบอีกครั้งว่า fileName มีนามสกุลไฟล์ถูกต้องหรือไม่
+			if (!string.IsNullOrEmpty(fileName) && (fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg") || fileName.EndsWith(".png")))
+			{
+				return $"{BaseUrl}/images/Teacher/{fileName}";
+			}
+		}
+
+		// ถ้าไม่ผ่านเงื่อนไขทั้งหมด จะส่งกลับ `null`
+		return null;
+	}
+
+	private async Task LoadFiles(IBrowserFile file)
+	{
+		if (file == null) return;
+
+		try
+		{
+			const long maxAllowedSize = 10 * 1024 * 1024;
+			_selectedFile = file;
+
+			using var memoryStream = new MemoryStream();
+			await file.OpenReadStream(maxAllowedSize).CopyToAsync(memoryStream);
+
+			byte[] buffer = memoryStream.ToArray();
+			string imageBase64Data = Convert.ToBase64String(buffer);
+			_previewImage = $"data:{file.ContentType};base64,{imageBase64Data}";
+
+			StateHasChanged();
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาดในการโหลดไฟล์: {ex.Message}");
+		}
+	}
+
+	private async Task DeleteImage(string imageUrl)
+	{
+		try
+		{
+			// 🔍 ตรวจสอบ Preview Image
+			if (!string.IsNullOrEmpty(_previewImage) && _previewImage.Contains(imageUrl))
+			{
+				// ลบจาก Preview
+				_previewImage = null;
+				_selectedFile = null;
+				await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพจาก Preview สำเร็จ");
+			}
+			else
+			{
+				// 🔍 ตรวจสอบไฟล์ที่อยู่บน Server
+				var fileName = Path.GetFileName(new Uri(imageUrl).AbsolutePath);
+				var fullPath = Path.Combine(_directoryPath, fileName); // <-- Path ที่ถูกต้อง
+
+				if (File.Exists(fullPath))
+				{
+					File.Delete(fullPath);
+
+					// ถ้าเป็นภาพจาก Server จะต้องอัปเดตข้อมูลของอาจารย์ด้วย
+					currentTeacher.Images = null;
+
+					await teacherService.DeleteImage(fileName);
+					await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพสำเร็จจากเซิร์ฟเวอร์");
+				}
+				else
+				{
+					await JSRuntime.InvokeVoidAsync("showToastr", "error", "ไม่พบรูปภาพที่ต้องการลบ");
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+
+		StateHasChanged();
+	}
+
+
+}

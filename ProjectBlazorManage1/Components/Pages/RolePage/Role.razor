@@ -1,0 +1,216 @@
+﻿@page "/role"
+@inject RoleService _roleService
+@inject IJSRuntime JSRuntime
+<Modals @ref="RoleModal"
+        Title="ระบบจัดการบทบาท"
+        IsVisible="showModal"
+        OnConfirm="HandleValidSubmit"
+        OnClose="CloseModal">
+    <ChildContent>
+        <EditForm id="modalForm" Model="@currentRoleDto" OnValidSubmit="@HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            @if (currentRoleDto != null)
+            {
+            
+                <MudTextField T="string"
+                              Label="ชื่อบทบบาท"
+                              Variant="Variant.Outlined"
+                              @bind-Value="currentRoleDto.Name"
+                              For="@(() => currentRoleDto.Name)"
+                              RequiredError="กรุณากรอกชื่อบทบบาท" />
+            }
+        </EditForm>
+    </ChildContent>
+</Modals>
+
+@if (IsProcessing)
+{
+    <div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+        <div class="spinner">
+            <div class="rect1"></div>
+            <div class="rect2"></div>
+            <div class="rect3"></div>
+            <div class="rect4"></div>
+            <div class="rect5"></div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow border-0 mt-4">
+        <div class="card-header bg-dark bg-gradient ml-0 py-3">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <h2 class="text-white py-2">ระบบจัดการข้อมูลบทบาท</h2>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <MudDataGrid T="IdentityRole"
+                         Items="@roleList"
+                         SortMode="SortMode.Multiple"
+                         Filterable="true"
+                         Hover="true"
+                         Elevation="2"
+                         Dense="true"
+                         Bordered="true"
+                         Striped="true"
+                         RowClick="@(args => ShowEditModal(args.Item))"
+                         Class="custom-datagrid">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">
+                        ระบบจัดการข้อมูลบทบาท
+                   </MudText>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="ShowAddModal"
+                               Size="Size.Medium"
+                               Class="add-button">
+                        เพิ่มบทบาท
+                    </MudButton>
+                </ToolBarContent>
+
+                <Columns>
+                    <PropertyColumn Property="x => x.Name"
+                                    Title="ชื่อบทบาท"
+                                    Filterable="true"
+                                    Sortable="true"
+                                    CellStyle="font-size: 14px;" />
+                    <TemplateColumn Title="การจัดการ"
+                                    CellClass="action-column"
+                                    Sortable="false">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(() => ShowEditModal(context.Item))">
+                                    แก้ไข
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(() => DeleteRole(context.Item.Name))">
+                                    ลบ
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="IdentityRole" />
+                </PagerContent>
+            </MudDataGrid>
+        </div>
+    </div>
+}
+
+@code {
+    private List<IdentityRole> roleList = new();
+    private RoleDto currentRoleDto = new();
+    private string? originalRoleName;
+    private bool IsProcessing { get; set; } = true;
+    private bool showModal = false;
+    private bool isEditMode = false;
+    private Modals RoleModal;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadRoles();
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadRoles()
+    {
+        roleList = await _roleService.GetAll();
+    }
+
+    private void ShowAddModal()
+    {
+        currentRoleDto = new RoleDto();
+        isEditMode = false;
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(IdentityRole role)
+    {
+        currentRoleDto = new RoleDto { Name = role.Name };
+        originalRoleName = role.Name;
+        isEditMode = true;
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteRole(string name)
+    {
+        bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", $"คุณแน่ใจว่าจะลบ Role '{name}' หรือไม่?");
+        if (confirmDelete)
+        {
+            var success = await _roleService.Delete(name);
+            if (success)
+            {
+                await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบ Role สำเร็จ");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("showToastr", "error", "ลบไม่สำเร็จ อาจมีผู้ใช้งานใน Role นี้");
+            }
+            await LoadRoles();
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            IsProcessing = true;
+            StateHasChanged();
+
+            if (isEditMode && originalRoleName != null)
+            {
+                var updateDto = new RoleUpdateDto
+                    {
+                        Name = originalRoleName,
+                        UpdateName = currentRoleDto.Name
+                    };
+                await _roleService.Update(updateDto);
+                await JSRuntime.InvokeVoidAsync("showToastr", "success", "อัปเดต Role สำเร็จ");
+            }
+            else
+            {
+                await _roleService.Add(currentRoleDto);
+                await JSRuntime.InvokeVoidAsync("showToastr", "success", "เพิ่ม Role สำเร็จ");
+            }
+
+            showModal = false;
+            await LoadRoles();
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+}

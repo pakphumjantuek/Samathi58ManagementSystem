@@ -1,0 +1,199 @@
+﻿@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using ProjectBlazorManage1.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject IUserStore<ApplicationUser> UserStore
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IEmailSender<ApplicationUser> EmailSender
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+@inject RoleManager<IdentityRole> RoleManager
+
+<PageTitle>สมัครสมาชิก</PageTitle>
+
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+<style>
+    body {
+        font-family: 'Sarabun', sans-serif;
+        background-color: var(--bs-body-bg);
+        color: var(--bs-body-color);
+    }
+
+    .card {
+        border-radius: 1rem;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow border-0 bg-light-subtle dark:bg-dark text-dark-subtle dark:text-light">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-center mb-4">📝 สมัครสมาชิก</h2>
+                    <StatusMessage Message="@Message" />
+
+                    <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="form-floating mb-3">
+                            <InputText @bind-Value="Input.Email" class="form-control" placeholder="name@example.com" autocomplete="username" />
+                            <label for="email">อีเมล</label>
+                            <ValidationMessage For="() => Input.Email" class="text-danger small" />
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="Input.Password" class="form-control" placeholder="password" autocomplete="new-password" />
+                            <label for="password">รหัสผ่าน</label>
+                            <ValidationMessage For="() => Input.Password" class="text-danger small" />
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control" placeholder="password" autocomplete="new-password" />
+                            <label for="confirm-password">ยืนยันรหัสผ่าน</label>
+                            <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger small" />
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-2">
+                            สร้างบัญชี
+                        </button>
+                    </EditForm>
+
+                    <hr class="my-4" />
+
+
+                    <div class="text-center mt-4">
+                        <p class="fw-semibold text-dark-emphasis fs-6">
+                            มีบัญชีอยู่แล้ว?
+                        </p>
+                        <a class="btn btn-outline-secondary btn-sm px-4" href="Account/Login">
+                            🔑 เข้าสู่ระบบ
+                        </a>
+                     
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+    private List<string> AvailableRoles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        AvailableRoles = await RoleManager.Roles.Select(r => r.Name).ToListAsync();
+
+        if (!AvailableRoles.Any())
+        {
+            var defaultRoles = new[] { "Admin", "Customer" };
+            foreach (var role in defaultRoles)
+            {
+                await RoleManager.CreateAsync(new IdentityRole(role));
+            }
+            AvailableRoles = defaultRoles.ToList();
+        }
+    }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null ? null : $"พบข้อผิดพลาด: {string.Join(", ", identityErrors.Select(e => e.Description))}";
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        Logger.LogInformation("สร้างบัญชีใหม่เรียบร้อย");
+
+        if (Input.Role is null)
+        {
+            await UserManager.AddToRoleAsync(user, SD.Role_Customer);
+        }
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+
+        await SignInManager.SignInAsync(user, isPersistent: false);
+        RedirectManager.RedirectTo(ReturnUrl);
+    }
+
+    private ApplicationUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<ApplicationUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'.");
+        }
+    }
+
+    private IUserEmailStore<ApplicationUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("ต้องใช้ user store ที่รองรับ email");
+        }
+        return (IUserEmailStore<ApplicationUser>)UserStore;
+    }
+
+    private sealed class InputModel
+    {
+        public string? Role { get; set; }
+
+        [Required(ErrorMessage = "กรุณากรอกอีเมล")]
+        [EmailAddress(ErrorMessage = "รูปแบบอีเมลไม่ถูกต้อง")]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "กรุณากรอกรหัสผ่าน")]
+        [StringLength(100, ErrorMessage = "รหัสผ่านต้องมีความยาวอย่างน้อย {2} ตัวอักษร", MinimumLength = 3)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "รหัสผ่านและการยืนยันไม่ตรงกัน")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

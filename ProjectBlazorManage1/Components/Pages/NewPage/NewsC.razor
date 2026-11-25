@@ -1,0 +1,514 @@
+﻿@page "/News"
+@inject NewsService _NewsService
+@inject IJSRuntime JSRuntime
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject IWebHostEnvironment Env
+
+
+
+<Modals @ref="NewsModal"
+        Title="จัดการข่าวสาร"
+        IsVisible="showModal"
+        OnConfirm="HandleValidSubmit"
+        Size="modal-lg"
+        OnClose="CloseModal">
+
+    <ChildContent>
+        <EditForm id="modalForm" Model="@Currentnews" OnValidSubmit="@HandleValidSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="d-flex flex-column gap-3">
+
+                <MudTextField T="string"
+                              Label="หัวข้อข่าว"
+                              									  Variant="Variant.Outlined"
+                              @bind-Value="Currentnews.Title"
+                              For="@(() => Currentnews.Title)"
+                              RequiredError="กรุณากรอกหัวข้อข่าว" />
+
+                <MudTextField T="string"
+                              Label="เนื้อหาข่าว"
+                              									  Variant="Variant.Outlined"
+                              @bind-Value="Currentnews.News_Content"
+                              Lines="5"
+                              For="@(() => Currentnews.News_Content)"
+                              RequiredError="กรุณากรอกเนื้อหาข่าว" />
+
+                <MudTextField T="string"
+                              Label="วิดีโอ YouTube (ถ้ามี)"
+                              									  Variant="Variant.Outlined"
+                              @bind-Value="Currentnews.YouTubeUrl" />
+
+                <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                               FilesChanged="UploadFiles"
+                               Accept=".jpg,.jpeg,.png"
+                               MaxFiles="30"
+                               Multiple="true">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload">
+                            อัพโหลดรูปภาพ (สูงสุด 30 รูป)
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+
+                @if (GetImageUrls().Any())
+                {
+                    <div class="d-flex flex-wrap mt-4 gap-3">
+                        @foreach (var img in GetImageUrls())
+                        {
+                            <div class="position-relative" style="width:100px; height:100px">
+                                <img src="@img" style="width:100%;height:100%;border:1px solid #ccc;padding:5px;border-radius:5px;" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                               Color="Color.Error"
+                                               Class="position-absolute top-0 end-0"
+                                               Size="Size.Small"
+                                               OnClick="@(() => DeleteImage(img))" />
+                            </div>
+                        }
+                    </div>
+                }
+
+            </div>
+
+        </EditForm>
+    </ChildContent>
+
+</Modals>
+
+@if (IsProcessing)
+{
+    <div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+        <div class="spinner">
+            <div class="rect1"></div>
+            <div class="rect2"></div>
+            <div class="rect3"></div>
+            <div class="rect4"></div>
+            <div class="rect5"></div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card shadow border-0 mt-4">
+        <div class="card-header bg-dark bg-gradient ml-0 py-3">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <h2 class="text-white py-2">ระบบจัดการข้อมูลข่าวสาร</h2>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-4">
+            <MudDataGrid T="News"
+                         Items="@FilteredNewsList"
+                         SortMode="SortMode.Multiple"
+                         Filterable="true"
+                         Hover="true"
+                         Elevation="2"
+                         Dense="true"
+                         Bordered="true"
+                         Striped="true"
+                         RowClick="@(args => ShowEditModal(args.Item))"
+                         Class="custom-datagrid">
+
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">ระบบจัดการข้อมูลข่าวสาร</MudText>
+                    <MudSpacer />
+
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <MudTextField @bind-Value="searchString"
+                                      Placeholder="ค้นหา..."
+                                      Variant="Variant.Outlined"
+                                      Size="Size.Small"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true"
+                                      DebounceInterval="3000"
+                                      Style="width: 300px; font-size: 0.875rem;"
+                                      Margin="Margin.Dense" />
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Add"
+                                   OnClick="ShowAddModal"
+                                   Size="Size.Medium"
+                                   Class="add-button">
+                            เพิ่มข้อมูลข่าวสาร
+                        </MudButton>
+                    </div>
+                </ToolBarContent>
+
+                <Columns>
+                    <PropertyColumn Property="x => x.Title"
+                                    Title="หัวข้อข่าว"
+                                    Filterable="true"
+                                    Sortable="true"
+                                    CellStyle="font-size: 14px;">
+                        <CellTemplate Context="context">
+                            @if (!string.IsNullOrEmpty(context.Item.Title))
+                            {
+                                @context.Item.Title.Substring(0, Math.Min(30, context.Item.Title.Length))
+
+                                @(context.Item.Title.Length > 30 ? "..." : "")
+                            }
+                        </CellTemplate>
+                    </PropertyColumn>
+
+                    <PropertyColumn Property="x => x.News_Content"
+                                    Title="เนื้อหาข่าว"
+                                    Filterable="true"
+                                    Sortable="true"
+                                    CellStyle="font-size: 14px;">
+                        <CellTemplate Context="context">
+                            @if (!string.IsNullOrEmpty(context.Item.News_Content))
+                            {
+                                @context.Item.News_Content.Substring(0, Math.Min(30, context.Item.News_Content.Length))
+
+                                @(context.Item.News_Content.Length > 30 ? "..." : "")
+                            }
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <PropertyColumn Property="x => x.DateStart" Title="วันที่เผยเเพร่" Filterable="true" Sortable="true" CellStyle="font-size: 14px;" />
+
+                    <TemplateColumn Title="สถานะ" CellClass="status-column" Sortable="false">
+                        <CellTemplate>
+                            <div @onclick:stopPropagation>
+                                <MudSwitch Value="@context.Item.Status"
+                                           ValueChanged="@(async (bool newValue) => await ToggleStatus(context.Item))"
+                                           ThumbIcon="@(context.Item.Status ? Icons.Material.Filled.Done : Icons.Material.Filled.Close)"
+                                           ThumbIconColor="@(context.Item.Status ? Color.Success : Color.Error)"
+                                           Disabled="@IsProcessing"
+                                           Class="custom-switch">
+                                </MudSwitch>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="รายละเอียด"
+                                    Sortable="false"
+                                    CellStyle="text-align:center;">
+                        <CellTemplate>
+                            <div @onclick:stopPropagation>
+
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           Href="@($"News/NewsDetails/{context.Item.News_Id}")">
+                                    รายละเอียด
+                                </MudButton>
+                            </div>
+
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="การจัดการ" CellClass="action-column" Sortable="false">
+                        <CellTemplate>
+                            <MudStack Row="true" Spacing="2">
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(() => ShowEditModal(context.Item))">
+                                    แก้ไข
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(() => Delete(context.Item.News_Id))">
+                                    ลบ
+                                </MudButton>
+                            </MudStack>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <PagerContent>
+                    <MudDataGridPager T="News" />
+                </PagerContent>
+            </MudDataGrid>
+        </div>
+    </div>
+}
+
+@code {
+    private List<News> NewsList = new();
+    private News Currentnews = new();
+    private bool IsProcessing { get; set; } = true;
+
+    private Modals NewsModal;
+    private bool showModal = false;
+    private bool isEditMode = false;
+
+    private List<IBrowserFile> _selectedFiles = new();
+    private List<string> _previewImages = new();
+    private List<string> ExistingImages => Currentnews.Images?.Split(';').ToList() ?? new();
+    private IEnumerable<string> AllImages => _previewImages.Concat(ExistingImages);
+
+    private string searchString = string.Empty;
+    private IEnumerable<News> FilteredNewsList => NewsList
+        .Where(x => string.IsNullOrWhiteSpace(searchString) ||
+               x.Title.Contains(searchString, StringComparison.OrdinalIgnoreCase) ||
+               x.News_Content.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(p => p.News_Id);
+
+    private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadNews();
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+
+    private async Task LoadNews()
+    {
+        NewsList = await _NewsService.GetAllNews();
+    }
+
+    private void ShowAddModal()
+    {
+        Currentnews = new News();
+        _previewImages.Clear();
+        _selectedFiles.Clear();
+        isEditMode = false;
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(News news)
+    {
+        Currentnews = new News
+            {
+                News_Id = news.News_Id,
+                Title = news.Title,
+                News_Content = news.News_Content,
+                DateStart = news.DateStart,
+                Images = news.Images,
+                YouTubeUrl = news.YouTubeUrl,
+                Status = news.Status
+            };
+        _previewImages.Clear();
+        _selectedFiles.Clear();
+        isEditMode = true;
+        showModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        StateHasChanged();
+    }
+
+    private async Task UploadFiles(IReadOnlyList<IBrowserFile> files)
+    {
+        const long MaxAllowedSize = 10 * 1024 * 1024; // 10MB
+        const int MaxAllowedFiles = 30; // จำกัดจำนวนไฟล์สูงสุดต่อข่าว
+        IsProcessing = true;
+
+        try
+        {
+            if (_selectedFiles.Count + files.Count > MaxAllowedFiles)
+            {
+                await JSRuntime.InvokeVoidAsync("showToastr", "error", $"สามารถอัพโหลดได้สูงสุด {MaxAllowedFiles} ไฟล์");
+                return;
+            }
+
+            foreach (var file in files)
+            {
+                if (file.Size > MaxAllowedSize)
+                {
+                    await JSRuntime.InvokeVoidAsync("showToastr", "error", $"ไฟล์ {file.Name} มีขนาดเกิน 10MB");
+                    continue;
+                }
+
+                // สร้างตัวอย่างภาพสำหรับแสดงผล (ใช้ขนาดเล็กเพื่อประหยัดหน่วยความจำ)
+                using var memoryStream = new MemoryStream();
+                await file.OpenReadStream(MaxAllowedSize).CopyToAsync(memoryStream);
+                byte[] buffer = memoryStream.ToArray();
+                string base64Data = Convert.ToBase64String(buffer);
+                string imageDataUrl = $"data:{file.ContentType};base64,{base64Data}";
+
+                _selectedFiles.Add(file);
+                _previewImages.Add(imageDataUrl);
+            }
+
+            if (_selectedFiles.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("showToastr", "success", $"เลือก {_selectedFiles.Count} ไฟล์สำเร็จ");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาดในการเลือกไฟล์: {ex.Message}");
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private IEnumerable<string> GetImageUrls()
+    {
+        var allImages = new List<string>();
+
+        allImages.AddRange(_previewImages);
+
+        allImages.AddRange(ExistingImages.Select(img =>
+        {
+            var fileName = Path.GetFileName(img);
+            return $"{BaseUrl}/images/News/{fileName}";
+        }));
+
+        // ดีบัก URL
+        foreach (var url in allImages)
+        {
+            Console.WriteLine($"Generated Image URL: {url}");
+        }
+
+        return allImages;
+    }
+
+    private async Task DeleteImage(string imageUrl)
+    {
+        try
+        {
+            if (_previewImages.Contains(imageUrl))
+            {
+                var index = _previewImages.IndexOf(imageUrl);
+                _previewImages.RemoveAt(index);
+                _selectedFiles.RemoveAt(index);
+
+                await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพสำเร็จจากรายการที่เลือก");
+            }
+            else
+            {
+                var fileName = Path.GetFileName(new Uri(imageUrl).AbsolutePath);
+
+                var fullPath = $"/images/News/{fileName}";
+
+                var existingImagesList = ExistingImages.ToList();
+                if (existingImagesList.Any(img => img.EndsWith(fileName)))
+                {
+                    // ลบจาก ExistingImages
+                    existingImagesList.RemoveAll(img => img.EndsWith(fileName));
+                    Currentnews.Images = existingImagesList.Any() ? string.Join(";", existingImagesList) : null;
+
+                    if (isEditMode)
+                    {
+                        await _NewsService.DeleteImage(fileName);
+                        await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพสำเร็จจากเซิร์ฟเวอร์");
+                    }
+                }
+                else
+                {
+                    await JSRuntime.InvokeVoidAsync("showToastr", "error", "ไม่พบรูปภาพที่ต้องการลบ");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาดในการลบรูปภาพ: {ex.Message}");
+        }
+
+        StateHasChanged();
+    }
+
+
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            IsProcessing = true;
+            StateHasChanged();
+
+            // อัพโหลดไฟล์ใหม่ไปยังเซิร์ฟเวอร์
+            List<string> uploadedImageUrls = new List<string>();
+            if (_selectedFiles.Any())
+            {
+                foreach (var file in _selectedFiles)
+                {
+                    string imageUrl = await _NewsService.UploadImage(file);
+                    uploadedImageUrls.Add(imageUrl);
+                }
+            }
+
+            // รวม URL รูปภาพเก่าและใหม่
+            var existingImages = ExistingImages.Where(img => !string.IsNullOrEmpty(img)).ToList();
+            existingImages.AddRange(uploadedImageUrls);
+            Currentnews.Images = existingImages.Any() ? string.Join(";", existingImages) : null;
+
+            // บันทึกข้อมูลข่าว
+            if (isEditMode)
+            {
+                await _NewsService.UpdateNews(Currentnews);
+                await JSRuntime.InvokeVoidAsync("ShowSwal", "test", "อัปเดตข่าวสำเร็จ");
+            }
+            else
+            {
+                await _NewsService.AddNews(Currentnews);
+                await JSRuntime.InvokeVoidAsync("ShowSwal", "test", "เพิ่มข่าวสำเร็จ");
+            }
+
+            // รีเซ็ตสถานะ
+            _selectedFiles.Clear();
+            _previewImages.Clear();
+            await LoadNews();
+            showModal = false;
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("ShowSwal", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+
+    public async Task Delete(int id)
+    {
+        bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบข้อมูลนี้หรือไม่?");
+        if (confirmDelete)
+        {
+            await _NewsService.DeleteNews(id);
+            await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบข้อมูลสำเร็จ");
+            await LoadNews();
+        }
+    }
+
+    private async Task ToggleStatus(News news)
+    {
+        try
+        {
+            IsProcessing = true;
+            StateHasChanged();
+
+            news.Status = !news.Status;
+            await _NewsService.UpdateNews(news);
+            await LoadNews();
+
+            await JSRuntime.InvokeVoidAsync("showToastr", "success", news.Status ? "เปิดสถานะ" : "ปิดสถานะ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling status: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("showToastr", "error", "เกิดข้อผิดพลาด");
+        }
+        finally
+        {
+            IsProcessing = false;
+            StateHasChanged();
+        }
+    }
+}

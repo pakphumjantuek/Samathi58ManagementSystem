@@ -1,0 +1,175 @@
+﻿@page "/upload-excel"
+@inject LearningPlanService LearningService
+@inject ClassStudieService ClassStudiedService
+@inject NavigationManager _navigationManager
+
+
+<div class="upload-container">
+    <h3 class="page-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="12" y1="18" x2="12" y2="12"></line>
+            <line x1="9" y1="15" x2="15" y2="15"></line>
+        </svg>
+        อัพโหลดไฟล์ Excel
+    </h3>
+
+    <div class="form-group">
+        <label class="form-label" for="classStudied">เลือกรุ่น</label>
+        <InputSelect @bind-Value="SelectedClassStudiedId" class="form-select" id="classStudied">
+            <option value="0" disabled selected>-- เลือกรุ่น --</option>
+            @foreach (var item in _classStudieds.OrderByDescending(p => p.Id))
+            {
+                if (item.Status == true) 
+                {
+                    <option value="@item.Id">@item.Id @item.termClass</option>
+                }
+            }
+        </InputSelect>
+    </div>
+
+
+    <div class="form-group">
+        <label class="form-label" for="fileUpload">อัพโหลดไฟล์ Excel</label>
+        <div class="file-input-wrapper">
+            <label class="file-input-label">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวาง</span>
+                <InputFile OnChange="HandleFileSelected" accept=".xls,.xlsx" id="fileUpload" class="file-input" />
+            </label>
+        </div>
+        <div class="file-info">
+            @if (uploadedFile != null)
+            {
+                <div>ไฟล์ที่เลือก: @uploadedFile.Name (@(Math.Round((double)uploadedFile.Size / 1024, 2)) KB)</div>
+            }
+            <div>รองรับไฟล์ .xls หรือ .xlsx ขนาดไม่เกิน 10MB</div>
+        </div>
+    </div>
+
+    <button class="btn-upload" @onclick="UploadFile" disabled="@IsUploading">
+        @if (IsUploading)
+        {
+            <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 6v6l4 2"></path>
+            </svg>
+            <span>กำลังอัปโหลด...</span>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span>อัปโหลด</span>
+        }
+    </button>
+
+    @if (!string.IsNullOrWhiteSpace(StatusMessage))
+    {
+        <div class="status-message @(IsSuccess ? "status-success" : "status-error")">
+            @StatusMessage
+        </div>
+    }
+</div>
+
+@code {
+    private string StatusMessage = string.Empty;
+    private bool IsSuccess = false;
+    private bool IsUploading = false;
+    private IEnumerable<ClassStudied> _classStudieds = new List<ClassStudied>();
+    private int SelectedClassStudiedId = 0;
+	private ClassStudied? _selectedClassStudied;
+    private IBrowserFile? uploadedFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClassStudied();
+    }
+
+    private async Task LoadClassStudied()
+    {
+        _classStudieds = await ClassStudiedService.GetClassStudies();
+    }
+
+    private async Task UploadFile()
+    {
+        try
+        {
+            IsUploading = true;
+            StatusMessage = string.Empty;
+
+            if (SelectedClassStudiedId == 0)
+            {
+                StatusMessage = "❌ กรุณาเลือกรุ่น";
+                IsSuccess = false;
+                return;
+            }
+
+            if (uploadedFile == null)
+            {
+                StatusMessage = "❌ กรุณาเลือกไฟล์ Excel";
+                IsSuccess = false;
+                return;
+            }
+
+            var extension = Path.GetExtension(uploadedFile.Name).ToLower();
+            if (extension != ".xls" && extension != ".xlsx")
+            {
+                StatusMessage = "❌ กรุณาอัปโหลดไฟล์ Excel (.xls หรือ .xlsx)";
+                IsSuccess = false;
+                return;
+            }
+
+            using var stream = uploadedFile.OpenReadStream(maxAllowedSize: 300 * 1024 * 1024);
+            var result = await LearningService.UploadExcelAsync(stream, SelectedClassStudiedId);
+
+            if (result == "success")
+            {
+                StatusMessage = "✅ อัปโหลดและบันทึกข้อมูลเรียบร้อยแล้ว";
+                IsSuccess = true;
+                _navigationManager.NavigateTo("learningplan");
+
+            }
+            else
+            {
+                StatusMessage = result switch
+                {
+                    "error: Invalid Excel file format" => "❌ ไฟล์ไม่ใช่ Excel ที่ถูกต้อง (.xls หรือ .xlsx)",
+                    "error: Empty Excel file" => "❌ ไฟล์ Excel ว่างเปล่า",
+                    "error: No valid records found in Excel file" => "❌ ไม่พบข้อมูลที่ถูกต้องในไฟล์ Excel",
+                    "error: No file data provided" => "❌ ไม่มีข้อมูลไฟล์",
+                    _ => $"❌ เกิดข้อผิดพลาด: {result}"
+                };
+                IsSuccess = false;
+            }
+        }
+        catch (IOException ex) when (ex.Message.Contains("maxAllowedSize"))
+        {
+            StatusMessage = "❌ ไฟล์มีขนาดใหญ่เกิน 10MB";
+            IsSuccess = false;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ เกิดข้อผิดพลาด: {ex.Message}";
+            IsSuccess = false;
+        }
+        finally
+        {
+            IsUploading = false;
+        }
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadedFile = e.File;
+        StatusMessage = string.Empty;
+    }
+}

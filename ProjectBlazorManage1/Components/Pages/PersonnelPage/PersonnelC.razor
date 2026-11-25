@@ -1,0 +1,591 @@
+﻿@page "/Personnel"
+@inject PersonnelService personnelService
+@inject InitialService initialService
+@inject JobPositionService jobPositionService
+@inject IWebHostEnvironment _webHostEnvironment
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+
+<Modals @ref="PersonnelModal"
+		Title="ระบบจัดการบุคลากร"
+		IsVisible="showModal"
+		OnConfirm="HandleValidSubmit"
+		OnClose="CloseModal"
+        Size="modal-lg">
+
+	<ChildContent>
+		<EditForm id="modalForm" Model="@currentPersonnel" OnValidSubmit="@HandleValidSubmit">
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+			 
+			<div class="d-flex flex-column gap-3">
+				<MudGrid>
+					<MudItem xs="4">
+						<MudSelect T="int"
+								   Label="คำนำหน้าชื่อ"
+								   									  Variant="Variant.Outlined"
+								   @bind-Value="currentPersonnel.Initial_Id"
+								   Required="true"
+								   RequiredError="โปรดเลือกบุคลากร"
+								   Dense="true"
+								   Class="my-2">
+							<MudSelectItem Value="0" Disabled="true">--โปรดเลือกคำนำหน้าชื่อ--</MudSelectItem>
+							@foreach (var initial in _initial)
+							{
+								<MudSelectItem Value="@initial.Initial_Id">@initial.Initial_Name</MudSelectItem>
+							}
+						</MudSelect>
+					</MudItem>
+					<MudItem xs="4">
+						<MudTextField T="string"
+									  Label="ชื่อ"
+									  									  Variant="Variant.Outlined"
+									  @bind-Value="currentPersonnel.Personnel_Name"
+									  For="@(() => currentPersonnel.Personnel_Name)"
+									  RequiredError="กรุณากรอกชื่อ" />
+					</MudItem>
+					<MudItem xs="4">
+						<MudTextField T="string"
+									  Label="นามสกุล"
+									  Variant="Variant.Outlined"
+									  @bind-Value="currentPersonnel.Personnel_LastName"
+									  For="@(() => currentPersonnel.Personnel_LastName)"
+									  RequiredError="กรุณากรอกนามสกุล" />
+					</MudItem>
+				</MudGrid>
+
+				<MudGrid>
+				<MudItem xs="6">
+				<MudTextField T="string"
+							  Label="เบอร์โทร (เฉพาะตัวเลข)"
+							  									  Variant="Variant.Outlined"
+							  @bind-Value="currentPersonnel.Phone_Number"
+							  For="@(() => currentPersonnel.Phone_Number)"
+							  MaxLength="10"
+							  RequiredError="กรุณากรอกเบอร์โทร"
+							  Pattern="^[0-9]*$"
+							  HelperText="กรอกเฉพาะตัวเลขเท่านั้น"
+							  InputMode="InputMode.numeric"
+							  Adornment="Adornment.End"
+							  AdornmentIcon="@Icons.Material.Filled.Numbers" />
+				</MudItem>
+			    <MudItem xs="6">
+				<MudTextField T="string"
+							  Label="อีเมล"
+							  									  Variant="Variant.Outlined"
+							  @bind-Value="currentPersonnel.Personnel_Email"
+							  For="@(() => currentPersonnel.Personnel_Email)"
+							  RequiredError="อีเมล" />
+					</MudItem>
+				</MudGrid>
+
+				<MudTextField T="string"
+							  Label="ที่อยู่ปัจจุบัน"
+							  									  Variant="Variant.Outlined"
+							  @bind-Value="currentPersonnel.Personnel_Address"
+							  For="@(() => currentPersonnel.Personnel_Address)"
+							  MaxLength="10"
+							  Lines="3"
+							  RequiredError="ที่อยู่" />
+				<MudDatePicker Label="วันที่"
+							   Variant="Variant.Outlined"
+							   @bind-Date="currentPersonnel.Date"
+							   DateFormat="dd MMMM yyyy"
+							   Placeholder="เลือกวันที่"
+							   Editable="true"
+							   OpenTo="OpenTo.Date"
+							   InputIcon="@Icons.Material.Filled.CalendarToday"
+							   Clearable="true"
+							   Class="w-100" />
+
+				<MudItem xs="12" md="12">
+					<MudSelect T="int"
+							   Label="ตำแหน่งงานในสถาบัน"
+							   									  Variant="Variant.Outlined"
+							   @bind-Value="currentPersonnel.jobPosition_ID"
+							   Required="true"
+							   RequiredError="โปรดเลือกตำแหน่งงานในสถาบัน"
+							   Dense="true"
+							   Class="my-2">
+						<MudSelectItem Value="0" Disabled="true">--โปรดเลือกตำแหน่งงานในสถาบัน--</MudSelectItem>
+
+						@foreach (var jobPS in _jobps.Where(j => j.Status))
+						{
+							<MudSelectItem Value="@jobPS.Id">@jobPS.Position_Name</MudSelectItem>
+						}
+					</MudSelect>
+				</MudItem>
+				
+				<MudFileUpload T="IBrowserFile"
+							   FilesChanged="LoadFiles"
+							   Accept=".jpg,.jpeg,.png"
+							   MaxFiles="1"
+							   Multiple="false">
+					<ActivatorContent>
+						<MudButton Variant="Variant.Filled"
+								   Color="Color.Primary"
+								   StartIcon="@Icons.Material.Filled.CloudUpload">
+							อัพโหลดรูปภาพ
+						</MudButton>
+					</ActivatorContent>
+				</MudFileUpload>
+				@if (!string.IsNullOrEmpty(GetImageUrl()))
+				{
+					<div class="mt-1 position-relative" style="width:100px; height:100px;">
+						<img src="@GetImageUrl()"
+							 style="width:100%; height:100%; object-fit:cover; border:1px solid #ccc; padding:5px; border-radius:5px;" />
+						<MudIconButton Icon="@Icons.Material.Filled.Delete"
+									   Color="Color.Error"
+									   Class="position-absolute top-0 end-0"
+									   Size="Size.Small"
+									   OnClick="@(() => DeleteImage(GetImageUrl()))" />
+					</div>
+				}
+			</div>
+		</EditForm>
+	
+	</ChildContent>
+</Modals>
+ 
+@if (IsProcessing)
+{
+	<div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+		<div class="spinner">
+			<div class="rect1"></div>
+			<div class="rect2"></div>
+			<div class="rect3"></div>
+			<div class="rect4"></div>
+			<div class="rect5"></div>
+		</div>
+	</div>
+}
+else
+{
+	<div class="card shadow border-0 mt-4">
+		<div class="card-header bg-black bg-gradient ml-0 py-3">
+			<div class="row">
+				<div class="col-12 text-center">
+					<h2 class="text-white py-2">ระบบจัดการข้อมูลบุคลการ</h2>
+				</div>
+			</div>
+		</div>
+		<div class="card-body p-4">
+			
+			<MudDataGrid T="Personnel"
+						 Items="@PersonnelList"
+						 SortMode="SortMode.Multiple"
+						 Filterable="true"
+						 Hover="true"
+						 Elevation="2"
+						 Dense="true"
+						 Bordered="true"
+						 Striped="true"
+						 RowClick="@(args => ShowEditModal(args.Item))"
+						 Class="custom-datagrid mt-4">
+
+				<ToolBarContent>
+					<MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">ระบบจัดการข้อมูลบุคลการ</MudText>
+					<MudSpacer />
+
+						<MudButton Variant="Variant.Filled"
+								   Color="Color.Secondary"
+								   StartIcon="@Icons.Material.Filled.Add"
+								   OnClick="ShowAddModal"
+								   Size="Size.Medium"
+								   Class="ms-2">
+						เพิ่มข้อมูลบุคลการ
+						</MudButton>
+
+				</ToolBarContent>
+
+				<Columns>
+					<TemplateColumn Title="ชื่อ-นามสกุล"
+									CellStyle="font-size: 14px;">
+						<CellTemplate>
+							@($"{context.Item.Personnel_Name} {context.Item.Personnel_LastName}")
+						</CellTemplate>
+					</TemplateColumn>
+
+					<PropertyColumn Property="x => x.Phone_Number"
+									Title="เบอร์โทรศัพท์"
+									Filterable="true"
+									Sortable="true"
+									CellStyle="font-size: 14px;" />
+
+					<TemplateColumn Title="สถานะ"
+									CellClass="status-column"
+									Sortable="false">
+						<CellTemplate>
+							<div @onclick:stopPropagation>
+								<MudSwitch Value="@context.Item.Status"
+										   ValueChanged="@(async (bool newValue) => await ToggleStatus(context.Item))"
+										   ThumbIcon="@(context.Item.Status ? Icons.Material.Filled.Done : Icons.Material.Filled.Close)"
+										   ThumbIconColor="@(context.Item.Status ? Color.Success : Color.Error)"
+										   Disabled="@IsProcessing"
+										   Class="custom-switch">
+
+								</MudSwitch>
+							</div>
+						</CellTemplate>
+					</TemplateColumn>
+						<TemplateColumn Title="รายละเอียด"
+										Sortable="false"
+										CellStyle="text-align:center;">
+							<CellTemplate>
+								<div @onclick:stopPropagation>
+
+									<MudButton Variant="Variant.Outlined"
+											   Color="Color.Primary"
+											   Size="Size.Small"
+											   Href="@($"personnel/details/{context.Item.Id}")">
+										รายละเอียด
+									</MudButton>
+								</div>
+
+							</CellTemplate>
+						</TemplateColumn>
+					<TemplateColumn Title="การจัดการ"
+									Sortable="false"
+									CellClass="action-column">
+						<CellTemplate>
+							<MudStack Row="true" Spacing="2">
+								<MudButton Variant="Variant.Outlined"
+										   Color="Color.Primary"
+										   Size="Size.Small"
+										   StartIcon="@Icons.Material.Filled.Edit"
+										   OnClick="@(() => ShowEditModal(context.Item))">
+									แก้ไข
+								</MudButton>
+								<MudButton Variant="Variant.Outlined"
+										   Color="Color.Error"
+										   Size="Size.Small"
+										   StartIcon="@Icons.Material.Filled.Delete"
+										   OnClick="@(() => DeleteTeacher(context.Item.Id))">
+									ลบ
+								</MudButton>
+							</MudStack>
+						</CellTemplate>
+					</TemplateColumn>
+				</Columns>
+
+				<PagerContent>
+					<MudDataGridPager T="Personnel" />
+				</PagerContent>
+			</MudDataGrid>
+	
+			<hr class="my-5" />
+		</div>
+	</div>
+}
+
+
+@code {
+	private List<Personnel> PersonnelList = new();
+	private bool IsProcessing { get; set; } = true;
+
+	private int selectedCourseId = 0;
+
+	private IEnumerable<Initial> _initial = new List<Initial>();
+	private IEnumerable<JobPosition> _jobps = new List<JobPosition>();
+
+	private Modals PersonnelModal;
+	private bool showModal = false;
+	private Personnel currentPersonnel = new();
+	private bool isEditMode = false;
+
+	private string? _directoryPath { get; set; }
+	private IBrowserFile? _selectedFile = null;
+	private string? _previewImage = null;
+	private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadData();
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+	protected override Task OnInitializedAsync()
+	{
+		_directoryPath = Path.Combine(_webHostEnvironment.WebRootPath, "images", "Personnel");
+		return base.OnInitializedAsync();
+	}
+
+	private async Task LoadData()
+	{
+		PersonnelList = await personnelService.GetAllPersonels();
+		_initial = await initialService.GetInitials();
+		_jobps = await jobPositionService.GetJobPS();
+	}
+
+
+	private void ShowAddModal()
+	{
+		currentPersonnel = new Personnel();
+		isEditMode = false;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void ShowEditModal(Personnel personnel)
+	{
+		currentPersonnel = new Personnel
+			{
+				Id = personnel.Id,
+				Personnel_Name = personnel.Personnel_Name,
+				Personnel_LastName = personnel.Personnel_LastName,
+				Personnel_Email = personnel.Personnel_Email,
+				Personnel_Address = personnel.Personnel_Address,
+				Phone_Number = personnel.Phone_Number,
+				Date = personnel.Date,
+				images = personnel.images,
+				jobPosition_ID = personnel.jobPosition_ID,
+				Initial_Id = personnel.Initial_Id,
+				Status = personnel.Status
+			};
+		isEditMode = true;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void CloseModal()
+	{
+		showModal = false;
+		_selectedFile = null;
+		_previewImage = null;
+		StateHasChanged();
+	}
+
+	private async Task ToggleStatus(Personnel personnel)
+	{
+		try
+		{
+			IsProcessing = true;
+			StateHasChanged();
+			personnel.Status = !personnel.Status;
+			await personnelService.UpdatePersonnel(personnel);
+			await LoadData();
+			if (personnel.Status)
+			{
+				await JSRuntime.InvokeVoidAsync("showToastr", "success", "เปิดข้อมูลสำเร็จ");
+			}
+			else
+			{
+				await JSRuntime.InvokeVoidAsync("showToastr", "success", "ปิดข้อมูลสำเร็จ");
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error toggling status: {ex.Message}");
+			personnel.Status = !personnel.Status;
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", "เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
+		}
+		finally
+		{
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			IsProcessing = true;
+
+			if (_selectedFile != null)
+			{
+				await SaveImages();
+			}
+
+			if (isEditMode)
+			{
+				await personnelService.UpdatePersonnel(currentPersonnel);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "อัพเดทสำเร็จ");
+			}
+			else
+			{
+				await personnelService.AddPersonnel(currentPersonnel);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "เพิ่มสำเร็จ");
+			}
+
+			_previewImage = null;
+			_selectedFile = null;
+			await LoadData();
+			showModal = false;
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+		finally
+		{
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+    public async Task SaveImages()
+	{
+			if (!string.IsNullOrWhiteSpace(currentPersonnel.images))
+			{
+				var oldFile = Path.GetFileName(currentPersonnel.images);
+				var oldFilePath = Path.Combine(_directoryPath, oldFile);
+				if (File.Exists(oldFilePath))
+				{
+					File.Delete(oldFilePath);
+				}
+			}
+
+			var extension = Path.GetExtension(_selectedFile.Name);
+			var newFileName = $"{Guid.NewGuid()}{extension}";
+			var fullPath = Path.Combine(_directoryPath, newFileName);
+
+
+			if (!Directory.Exists(_directoryPath))
+			{
+				Directory.CreateDirectory(_directoryPath);
+			}
+
+
+			long maxAllowedSize = 10 * 1024 * 1024;
+			await using FileStream fileStream = new(fullPath, FileMode.Create);
+			await _selectedFile.OpenReadStream(maxAllowedSize).CopyToAsync(fileStream);
+
+			currentPersonnel.images = $"/images/Personnel/{newFileName}";	
+	}
+
+
+	public async Task DeleteTeacher(int id)
+	{
+		bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบหรือไม่?");
+
+		if (confirmDelete)
+		{
+			await personnelService.DeletePersonnel(id);
+
+			await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบสำเร็จ");
+		}
+		await LoadData();
+	}
+
+	private string GetImageUrl()
+	{
+		if (!string.IsNullOrEmpty(_previewImage))
+		{
+			return _previewImage;
+		}
+
+		// ตรวจสอบว่า currentStudents และ Images มีค่าไม่ใช่ Null และไม่ว่าง
+		if (currentPersonnel != null && !string.IsNullOrEmpty(currentPersonnel.images))
+		{
+			var fileName = Path.GetFileName(currentPersonnel.images);
+
+			// ตรวจสอบอีกครั้งว่า fileName มีนามสกุลไฟล์ถูกต้องหรือไม่
+			if (!string.IsNullOrEmpty(fileName) && (fileName.EndsWith(".jpg") || fileName.EndsWith(".jpeg") || fileName.EndsWith(".png")))
+			{
+				return $"{BaseUrl}/images/Personnel/{fileName}";
+			}
+		}
+
+		// ถ้าไม่ผ่านเงื่อนไขทั้งหมด จะส่งกลับ `null`
+		return null;
+	}
+
+	private async Task LoadFiles(IBrowserFile file)
+	{
+		const long maxAllowedSize = 10 * 1024 * 1024;
+		_selectedFile = file;
+
+		using var memoryStream = new MemoryStream();
+		await file.OpenReadStream(maxAllowedSize).CopyToAsync(memoryStream);
+
+		byte[] buffer = memoryStream.ToArray();
+		string imageBase64Data = Convert.ToBase64String(buffer);
+		_previewImage = $"data:{file.ContentType};base64,{imageBase64Data}";
+
+		StateHasChanged();
+	}
+
+	private async Task DeleteImage(string imageUrl)
+	{
+		try
+		{
+			// 🔍 ตรวจสอบ Preview Image
+			if (!string.IsNullOrEmpty(_previewImage) && _previewImage.Contains(imageUrl))
+			{
+				// ลบจาก Preview
+				_previewImage = null;
+				_selectedFile = null;
+				await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพจาก Preview สำเร็จ");
+			}
+			else
+			{
+				// 🔍 ตรวจสอบไฟล์ที่อยู่บน Server
+				var fileName = Path.GetFileName(new Uri(imageUrl).AbsolutePath);
+				var fullPath = Path.Combine(_directoryPath, fileName); // <-- Path ที่ถูกต้อง
+
+				if (File.Exists(fullPath))
+				{
+					File.Delete(fullPath);
+
+					// ถ้าเป็นภาพจาก Server จะต้องอัปเดตข้อมูลของอาจารย์ด้วย
+					currentPersonnel.images = null;
+
+					await personnelService.DeleteImage(fileName);
+					await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบรูปภาพสำเร็จจากเซิร์ฟเวอร์");
+				}
+				else
+				{
+					await JSRuntime.InvokeVoidAsync("showToastr", "error", "ไม่พบรูปภาพที่ต้องการลบ");
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+
+		StateHasChanged();
+	}
+
+
+	private async Task<string?> SaveImageAsync()
+	{
+		if (_selectedFile == null)
+			return null;
+
+		// สร้างโฟลเดอร์ถ้ายังไม่มี
+		if (!Directory.Exists(_directoryPath))
+		{
+			Directory.CreateDirectory(_directoryPath);
+		}
+
+		// ลบรูปเดิมถ้ามี
+		if (!string.IsNullOrWhiteSpace(currentPersonnel.images))
+		{
+			var oldFile = Path.GetFileName(currentPersonnel.images);
+			var oldFilePath = Path.Combine(_directoryPath, oldFile);
+			if (File.Exists(oldFilePath))
+			{
+				File.Delete(oldFilePath);
+			}
+		}
+
+		var extension = Path.GetExtension(_selectedFile.Name);
+		var newFileName = $"{Guid.NewGuid()}{extension}";
+		var fullPath = Path.Combine(_directoryPath, newFileName);
+
+		const long maxAllowedSize = 10 * 1024 * 1024;
+		await using var fileStream = new FileStream(fullPath, FileMode.Create);
+		await _selectedFile.OpenReadStream(maxAllowedSize).CopyToAsync(fileStream);
+
+		return $"/images/Personnel/{newFileName}";
+	}
+
+}

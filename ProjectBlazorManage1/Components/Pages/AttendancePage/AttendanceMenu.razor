@@ -1,0 +1,148 @@
+﻿@page "/attendance/menu/{ClassId:int}"
+@inject ApplicationDbContext _context
+@inject AttendanceService _attendanceService
+@inject LearningPlanService _learningPlanService
+
+<h2 class="text-center text-primary mt-4 mb-2">📝 ระบบบันทึกการเข้าเรียน</h2>
+<h4 class="text-center text-secondary mb-4">
+    หลักสูตรครูสมาธิ รุ่นที่ <span class="fw-bold">@ClassId</span>
+</h4>
+
+@if (IsProcessing)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 60vh;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">กำลังโหลด...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-6 offset-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart-fill me-2"></i> เลือกรายการ
+                    </h5>
+                    <a href="ClassStudie/Timetable/@ClassId" class="btn btn-outline-light shadow-sm">
+                        ย้อนกลับ
+                    </a>
+                </div>
+                <div class="card-body">
+                    <a class="list-group-item list-group-item-action" href="@($"attendance/report/{ClassId}")">
+                        รายงานการเข้าเรียนทั้งหมด
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- แก้ไขส่วนช่องค้นหาให้อยู่ในตำแหน่งที่เหมาะสม -->
+   
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-book-fill me-2"></i> รายวิชาทั้งหมด
+            </h5>
+        </div>
+
+        <div class="card-body">
+            <div class="row mb-1">
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-end">
+                        <div style="width: 300px;">
+                            <MudTextField @bind-Value="searchString"
+                                          Placeholder="ค้นหา..."
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Immediate="true"
+                                          Class="w-100"
+                                          Margin="Margin.Dense" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ตารางข้อมูล -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>📅 วันที่</th>
+                            <th>⏰ เวลา</th>
+                            <th class="text-start">📘 รายวิชา</th>
+                            <th>🎞 เทปที่</th>
+                            <th>👩‍🏫 ผู้บรรยาย</th>
+                            <th>✏️ การจัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (FilteredBranchList.Any())
+                        {
+                            @foreach (var plan in FilteredBranchList)
+                            {
+                                <tr>
+                                    <td>@plan.Date?.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))</td>
+                                    <td>@plan.Time</td>
+                                    <td class="text-start">@plan.Name</td>
+                                    <td>@plan.Tape</td>
+                                    <td>@($"{plan.teacher?.Teacher_Name} {plan.teacher?.Teacher_LastName}")</td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary" href="@($"attendance/take/{ClassId}/{plan.Id}")">
+                                            <i class="bi bi-pencil-square me-1"></i> บันทึก
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6">ไม่พบข้อมูล</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a class="btn btn-outline-secondary" href="@($"ClassStudie/Timetable/{ClassId}")">
+            <i class="bi bi-arrow-left me-1"></i> กลับหน้าตารางสอน
+        </a>
+    </div>
+
+}
+
+@code {
+    [Parameter] public int ClassId { get; set; }
+    private List<LearningPlan> LearningPlans { get; set; } = new();
+    private bool IsProcessing { get; set; } = true;
+    private string searchString = string.Empty;
+
+    private IEnumerable<LearningPlan> FilteredBranchList =>
+            LearningPlans.Where(x =>
+            string.IsNullOrWhiteSpace(searchString.Trim()) ||
+            (x?.Name?.Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (x?.teacher?.Teacher_Name?.Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (x?.teacher?.Teacher_LastName?.Contains(searchString.Trim(), StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderBy(p => p.Id);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsProcessing = true;
+        try
+        {
+            LearningPlans = await _attendanceService.GetClassDetailsAsync(ClassId);
+        }
+        finally
+        {
+            IsProcessing = false;
+        }
+    }
+}

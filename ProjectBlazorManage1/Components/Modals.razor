@@ -1,0 +1,85 @@
+﻿@namespace ProjectBlazorManage1.Components
+
+<div class="modal @(IsVisible ? "show d-block" : "d-none")"
+     tabindex="-1"
+     style="background-color: rgba(0,0,0,0.5);"
+     @onclick="HandleBackdropClick">
+
+    <div class="modal-dialog modal-dialog-centered @Size">
+        <div class="modal-content" style="@(GetModalContentStyle())" @onclick:stopPropagation>
+            @if (ShowHeader)
+            {
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                    @if (ShowCloseButton)
+                    {
+                        <button type="button" class="btn-close" @onclick="Close" aria-label="ปิด"></button>
+                    }
+                </div>
+            }
+
+            <div class="modal-body">
+                @ChildContent
+            </div>
+
+            @if (ShowFooter)
+            {
+                <div class="modal-footer">
+                    @if (ShowCloseButton)
+                    {
+                        <button type="button" class="btn btn-secondary" @onclick="Close">ปิด</button>
+                    }
+
+                    @if (ShowConfirmButton)
+                    {
+                        <button type="submit" form="@FormId" class="btn btn-primary">ยืนยัน</button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Modal Title";
+    [Parameter] public bool IsVisible { get; set; }
+
+    [Parameter] public bool ShowHeader { get; set; } = true;
+    [Parameter] public bool ShowFooter { get; set; } = true;
+    [Parameter] public bool ShowCloseButton { get; set; } = true;
+    [Parameter] public bool ShowConfirmButton { get; set; } = true;
+
+    [Parameter] public bool ShowBackdrop { get; set; } = true;
+    [Parameter] public string FormId { get; set; } = "modalForm";
+    [Parameter] public string Size { get; set; } = "";
+
+    [Parameter] public string ModalBackgroundColor { get; set; } = "white"; // <--- เพิ่ม Parameter
+    [Parameter] public bool TransparentModal { get; set; } = false; // <--- ถ้าเป็น true จะโปร่งใส
+
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        if (ShowBackdrop)
+        {
+            await Close();
+        }
+    }
+
+    private string GetModalContentStyle()
+    {
+        if (TransparentModal)
+        {
+            return "background-color: transparent; border: none; box-shadow: none;";
+        }
+        return $"background-color: {ModalBackgroundColor};";
+    }
+}

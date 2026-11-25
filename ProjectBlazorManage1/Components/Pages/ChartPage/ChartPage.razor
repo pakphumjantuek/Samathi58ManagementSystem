@@ -1,0 +1,238 @@
+﻿@page "/chart"
+@using MudBlazor
+@using ProjectBlazorManage1.Service
+@inject ReportService ReportService
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+    <MudPaper Elevation="3" Class="pa-6 mb-6" Style="background: linear-gradient(to right, #673ab7, #9c27b0);">
+        <MudText Typo="Typo.h3" Class="white-text mb-2" Style="color: white; font-weight: bold;">สรุปผลการสอบผ่านของนักเรียนแต่ละรุ่น</MudText>
+        <MudText Typo="Typo.subtitle1" Style="color: #e1bee7;">รายงานแสดงผลการวิเคราะห์ผลการสอบของนักเรียนแยกตามรุ่นการศึกษา</MudText>
+    </MudPaper>
+
+    @if (_summaries == null)
+    {
+        <MudPaper Elevation="2" Class="d-flex justify-center align-center pa-6" Style="height: 400px;">
+            <MudProgressCircular Color="Color.Secondary" Size="Size.Large" Indeterminate="true" />
+            <MudText Class="ml-4" Typo="Typo.h6">กำลังโหลดข้อมูล...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudCard Elevation="4" Class="mb-6">
+            <MudCardContent Class="pb-0">
+                <MudGrid>
+                    <MudItem xs="12" md="3">
+                        <MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center mud-theme-primary" Style="height: 120px; border-radius: 8px;">
+                            <MudText Typo="Typo.h3">@_summaries.Sum(s => s.TotalStudents)</MudText>
+                            <MudText Typo="Typo.subtitle1">นักเรียนทั้งหมด</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center mud-theme-secondary" Style="height: 120px; border-radius: 8px;">
+                            <MudText Typo="Typo.h3">@_summaries.Sum(s => s.PassedStudents)</MudText>
+                            <MudText Typo="Typo.subtitle1">นักเรียนที่สอบผ่าน</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 120px; background-color: #4caf50; color: white; border-radius: 8px;">
+                            <MudText Typo="Typo.h3">@_summaries.Count</MudText>
+                            <MudText Typo="Typo.subtitle1">จำนวนรุ่น</MudText>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 120px; background-color: #ff9800; color: white; border-radius: 8px;">
+                            @{
+                                var avgPassPercent = _summaries.Average(s => s.PassPercentage);
+                            }
+                            <MudText Typo="Typo.h3">@avgPassPercent.ToString("F1")%</MudText>
+                            <MudText Typo="Typo.subtitle1">เฉลี่ยการสอบผ่าน</MudText>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+
+        <!-- แท็บสำหรับสลับกราฟ -->
+        <MudPaper Elevation="3" Class="pa-4" Style="border-radius: 12px;">
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Secondary"
+                     TabPanelClass="mt-4" ActivePanelIndexChanged="OnTabChanged">
+                <MudTabPanel Text="กราฟแท่ง" Icon="@Icons.Material.Filled.BarChart">
+                    <MudCard Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px;">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h5" Style="font-weight: 500; color: #424242;">จำนวนนักเรียนที่สอบผ่านในแต่ละรุ่น</MudText>
+                                <MudText Typo="Typo.body2" Style="color: #757575;">แสดงจำนวนนักเรียนที่สอบผ่านเทียบกับจำนวนทั้งหมดในแต่ละรุ่น</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Bar" ChartSeries="@BarSeries"
+                                      XAxisLabels="@_summaries.Select(s => $"รุ่น {s.ClassId}").ToArray()"
+                                      Width="100%" Height="350px"
+                                      ChartOptions="@(new ChartOptions { YAxisTicks = 1, ChartPalette = new[] { "#673ab7", "#9c27b0", "#e91e63" } })">
+                            </MudChart>
+                        </MudCardContent>
+                    </MudCard>
+                </MudTabPanel>
+                <MudTabPanel Text="กราฟวงกลม" Icon="@Icons.Material.Filled.PieChart">
+                    <MudGrid>
+                        <MudItem xs="12" md="7">
+                            <MudCard Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px;">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h5" Style="font-weight: 500; color: #424242;">สัดส่วนการสอบผ่านของรุ่น</MudText>
+                                        <MudText Typo="Typo.body2" Style="color: #757575;">รหัสรุ่น: @_selectedClass?.ClassId</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <div class="d-flex justify-center">
+                                        <MudChart ChartType="ChartType.Donut"
+                                                  InputData="@DonutData"
+                                                  InputLabels="@DonutLabels"
+                                                  Width="350px" Height="350px"
+                                                  LegendPosition="Position.Bottom">
+                                        </MudChart>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                        <MudItem xs="12" md="5">
+                            <MudCard Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px; height: 100%;">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h5" Style="font-weight: 500; color: #424242;">เลือกรุ่นเพื่อดูข้อมูล</MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudSelect T="ClassPassSummary" Value="@_selectedClass" ValueChanged="@(s => UpdateDonutData(s))"
+                                               Label="เลือกรหัสรุ่น" Dense="true" Class="mb-4" Variant="Variant.Outlined" FullWidth="true">
+                                        @foreach (var classSummary in _summaries)
+                                        {
+                                            <MudSelectItem Value="@classSummary">รุ่น @classSummary.ClassId</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    @if (_selectedClass != null)
+                                    {
+                                        <MudPaper Elevation="0" Class="pa-4 mt-4" Style="background-color: #ede7f6; border-radius: 8px;">
+                                            <MudText Typo="Typo.subtitle1"><b>ข้อมูลรุ่น @_selectedClass.ClassId</b></MudText>
+                                            <MudDivider Class="my-2" />
+                                            <MudText Typo="Typo.body2">นักเรียนทั้งหมด: @_selectedClass.TotalStudents คน</MudText>
+                                            <MudText Typo="Typo.body2">สอบผ่าน: @_selectedClass.PassedStudents คน</MudText>
+                                            <MudText Typo="Typo.body2">ไม่ผ่าน: @(_selectedClass.TotalStudents - _selectedClass.PassedStudents) คน</MudText>
+                                            <MudText Typo="Typo.body2">ใบขยัน: @(_selectedClass.PassedStudentsWithCertificate) คน</MudText>
+                                            <MudText Typo="Typo.body2">อัตราการสอบผ่าน: @_selectedClass.PassPercentage.ToString("F1")%</MudText>
+                                        </MudPaper>
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </MudTabPanel>
+                <MudTabPanel Text="กราฟเส้น" Icon="@Icons.Material.Filled.ShowChart">
+                    <MudCard Elevation="0" Style="background-color: #f5f5f5; border-radius: 8px;">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h5" Style="font-weight: 500; color: #424242;">เปอร์เซ็นต์การสอบผ่านในแต่ละรุ่น</MudText>
+                                <MudText Typo="Typo.body2" Style="color: #757575;">แสดงแนวโน้มอัตราการสอบผ่านของนักเรียนในแต่ละรุ่น</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@LineSeries"
+                                      XAxisLabels="@_summaries.Select(s => $"รุ่น {s.ClassId}").ToArray()"
+                                      Width="100%" Height="350px"
+                                      ChartOptions="@(new ChartOptions { YAxisTicks = 10, ChartPalette = new[] { "#ff9800", "#2196f3" }, LineStrokeWidth = 3 })">
+                            </MudChart>
+                        </MudCardContent>
+                    </MudCard>
+                </MudTabPanel>
+            </MudTabs>
+        </MudPaper>
+
+        <MudExpansionPanels Class="mt-6">
+            <MudExpansionPanel Text="รายละเอียดข้อมูลทั้งหมด" Icon="@Icons.Material.Filled.TableChart">
+                <MudTable Items="@_summaries" Hover="true" Striped="true" Bordered="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>รุ่น</MudTh>
+                        <MudTh>นักเรียนทั้งหมด</MudTh>
+                        <MudTh>นักเรียนที่สอบผ่าน</MudTh>
+                        <MudTh>นักเรียนที่ไม่ผ่าน</MudTh>
+                        <MudTh>นักเรียนที่ได้ใบขยัน</MudTh>
+                        <MudTh>อัตราการสอบผ่าน (%)</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.ClassId</MudTd>
+                        <MudTd>@context.TotalStudents</MudTd>
+                        <MudTd>@context.PassedStudents</MudTd>
+                        <MudTd>@(context.TotalStudents - context.PassedStudents)</MudTd>
+                        <MudTd>@context.PassedStudentsWithCertificate</MudTd>
+                        <MudTd>@context.PassPercentage.ToString("F1")%</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudExpansionPanel>
+        </MudExpansionPanels>
+    }
+</MudContainer>
+
+@code {
+    private List<ClassPassSummary> _summaries;
+    private List<ChartSeries> BarSeries = new();
+    private List<ChartSeries> LineSeries = new();
+    private double[] DonutData;
+    private string[] DonutLabels = new[] { "สอบผ่าน", "ไม่ผ่าน", "ใบขยัน" };
+    private ClassPassSummary _selectedClass;
+    private int _activeTabIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _summaries = await ReportService.GetClassPassSummaryAsync();
+
+        // เตรียมข้อมูลสำหรับกราฟแท่ง
+        BarSeries.Add(new ChartSeries
+            {
+                Name = "จำนวนนักเรียนที่สอบผ่าน",
+                Data = _summaries.Select(s => (double)s.PassedStudents).ToArray()
+            });
+
+        BarSeries.Add(new ChartSeries
+            {
+                Name = "จำนวนนักเรียนทั้งหมด",
+                Data = _summaries.Select(s => (double)s.TotalStudents).ToArray()
+            });
+
+        // เตรียมข้อมูลสำหรับกราฟเส้น
+        LineSeries.Add(new ChartSeries
+            {
+                Name = "เปอร์เซ็นต์การสอบผ่าน",
+                Data = _summaries.Select(s => s.PassPercentage).ToArray()
+            });
+        BarSeries.Add(new ChartSeries
+            {
+                Name = "จำนวนนักเรียนที่ได้ใบขยัน",
+                Data = _summaries.Select(s => (double)s.PassedStudentsWithCertificate).ToArray()
+            });
+
+        // ตั้งค่าเริ่มต้นสำหรับกราฟวงกลม
+        _selectedClass = _summaries.FirstOrDefault();
+        UpdateDonutData(_selectedClass);
+    }
+
+    private void UpdateDonutData(ClassPassSummary selectedClass)
+    {
+        _selectedClass = selectedClass;
+
+        DonutData = selectedClass != null
+            ? new double[]
+            {
+            selectedClass.PassedStudents,                                     // จำนวนที่สอบผ่าน
+            selectedClass.TotalStudents - selectedClass.PassedStudents,       // จำนวนที่ไม่ผ่าน
+            selectedClass.PassedStudentsWithCertificate                       // จำนวนที่ได้ Certificate
+            }
+            : new double[] { 0, 0, 0 };
+    }
+
+    private void OnTabChanged(int index)
+    {
+        _activeTabIndex = index;
+        StateHasChanged();
+    }
+}

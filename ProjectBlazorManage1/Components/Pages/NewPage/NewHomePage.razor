@@ -1,0 +1,854 @@
+﻿@page "/NewsPage"
+
+@inject NewsService NewsService
+@inject NavigationManager NavigationManager
+
+<PageTitle>ข่าวประชาสัมพันธ์</PageTitle>
+<div class="container my-5">
+    <!-- Header Section with Hero Banner -->
+    <div class="bg-light rounded-4 shadow-sm p-4 mb-5">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-5 fw-bold text-success mb-3">ข่าวประชาสัมพันธ์</h1>
+                <p class="lead text-muted">อัพเดทข่าวสารและกิจกรรมล่าสุดจากเรา</p>
+            </div>
+            <div class="col-lg-4 text-end d-none d-lg-block">
+                <i class="bi bi-newspaper text-success" style="font-size: 5rem;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+            <div class="spinner">
+                <div class="rect1"></div>
+                <div class="rect2"></div>
+                <div class="rect3"></div>
+                <div class="rect4"></div>
+                <div class="rect5"></div>
+            </div>
+        </div>
+    }
+    else
+    {
+    <MudGrid Class="pa-4" GutterSize="GutterSize.Small">
+    <!-- Search Bar -->
+    <MudItem xs="12" sm="12" md="8" Class="px-0 py-0 py-sm-0 pr-sm-2">
+        <MudTextField @bind-Value="@searchQuery"
+                      Immediate="true"
+                      Placeholder="🔍 ค้นหาข่าว..."
+                      Variant="Variant.Outlined"
+                      Margin="Margin.None"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      AdornmentColor="Color.Primary"
+                      IconSize="Size.Medium"
+                      Class="news-search-input"
+                      Style="@("width: 100%; " +
+                            "background-color: white; " +
+                            "border-radius: 8px; " +
+                            "height: 56px; " +
+                            "box-shadow: 0 2px 8px rgba(0,0,0,0.1);")"
+                      InputStyle="font-size: 1rem; padding: 16px;">
+            <LabelStyle>
+                <LabelStyle Style="color: #5f6368; font-weight: 500; font-size: 0.875rem; padding-bottom: 8px;">ค้นหาข่าวสาร</LabelStyle>
+            </LabelStyle>
+        </MudTextField>
+    </MudItem>
+
+    <!-- Date Picker -->
+    <MudItem xs="12" sm="12" md="4" Class="px-0 py-0 py-sm-0 pl-sm-2">
+        <MudDatePicker @bind-Date="selectedDate"
+                       PickerVariant="PickerVariant.Dialog"
+                       Placeholder="📅 เลือกวัน/เดือน/ปี"
+                       DateFormat="dd MMMM yyyy"
+                       Clearable="true"
+                       DisableToolbar="false"
+                       AutoClose="true"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.None"
+                       Adornment="Adornment.End"
+                       AdornmentIcon="@Icons.Material.Filled.Event"
+                       AdornmentColor="Color.Primary"
+                       IconSize="Size.Medium"
+                       Class="news-date-picker"
+                       Style="@("width: 100%; " +
+                             "background-color: white; " +
+                             "border-radius: 8px; " +
+                             "box-shadow: 0 2px 8px rgba(0,0,0,0.1);")">
+            <LabelStyle>
+                <LabelStyle Style="color: #5f6368; font-weight: 500; font-size: 0.875rem; padding-bottom: 8px;">กรองตามวันที่</LabelStyle>
+            </LabelStyle>
+        </MudDatePicker>
+    </MudItem>
+</MudGrid>
+
+          <div >
+        <div class="d-flex flex-wrap justify-content-between align-items-center">
+            <p class="mb-0 text-muted">แสดงข่าวทั้งหมด <span class="fw-bold">@allNews.Count</span> รายการ</p>
+        </div>
+    </div>
+
+
+        <!-- ส่วนนี้คือการตรวจสอบว่าไม่พบข้อมูล -->
+        @if (pagedNewsList.Count == 0)
+        {
+            <div class="alert alert-warning text-center" role="alert" style="background-color: #fff3cd; border: 2px solid #ffeeba; border-radius: 8px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 20px 0; font-family: 'Sarabun', sans-serif;">
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#856404" viewBox="0 0 16 16" style="margin-right: 10px;">
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
+                    </svg>
+                    <h5 style="color: #856404; margin: 0; font-weight: 600; font-size: 1.25rem;">แจ้งให้ทราบ</h5>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(searchQuery) && selectedDate.HasValue)
+                {
+                    <p style="color: #856404; font-size: 1.1rem; margin: 0;">ไม่พบข่าวที่ค้นหาหรือวันที่ที่เลือก</p>
+                }
+                else if (!string.IsNullOrWhiteSpace(searchQuery))
+                {
+                    <p style="color: #856404; font-size: 1.1rem; margin: 0;">ไม่พบข่าวที่ค้นหา: "<span style="font-weight: bold;">@searchQuery</span>"</p>
+                }
+                else if (selectedDate.HasValue)
+                {
+                    <p style="color: #856404; font-size: 1.1rem; margin: 0;">ไม่พบข่าวในวันที่: <span style="font-weight: bold;">@selectedDate.Value.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))</span></p>
+                }
+                else
+                {
+                    <p style="color: #856404; font-size: 1.1rem; margin: 0;">ไม่พบข่าวที่จะแสดง</p>
+                }
+
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-sm" style="background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 5px 15px; border-radius: 4px; font-weight: 500; cursor: pointer;">กลับไปหน้าหลัก</button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- News Cards Section -->
+            <div class="row g-4">
+                @foreach (var news in pagedNewsList)
+                {
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card h-100 border-0 shadow-sm hover-card overflow-hidden">
+                            <div class="position-relative news-image-container">
+                                @if (GetImages(news).Any())
+                                {
+                                    var firstImage = GetImages(news).FirstOrDefault();
+
+                                    if (!string.IsNullOrEmpty(firstImage))
+                                    {
+                                        <img src="@firstImage"
+                                             class="card-img-top"
+                                             style="height: 220px; object-fit: cover; transition: transform 0.3s ease;"
+                                             alt="ข่าว @news.Title" />
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 220px;">
+                                        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                    </div>
+                                }
+                                <div class="news-date-badge">
+                                    <span class="date-day">@news.DateStart.Day</span>
+                                    <span class="date-month">@news.DateStart.ToString("MMM", new System.Globalization.CultureInfo("th-TH"))</span>
+                                </div>
+                            </div>
+
+                            <div class="card-body d-flex flex-column p-4">
+                                <h5 class="card-title fw-bold mb-3 text-truncate-2">@news.Title</h5>
+                                <div class="text-muted mb-3 d-flex align-items-center small">
+                                    <i class="bi bi-calendar-event me-2"></i>
+                                    @news.DateStart.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))
+                                </div>
+                                <div class="card-text mb-4 news-content-preview">
+                                    @((MarkupString)news.News_Content)
+                                </div>
+                                <div class="mt-auto text-end">
+                                    <button class="btn btn-success px-4 rounded-pill" @onclick="() => GoToDetails(news.News_Id)">
+                                        <i class="bi bi-book me-2"></i>อ่านเพิ่มเติม
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+    <!-- Enhanced Pagination -->
+    @if (totalPages > 1)
+    {
+        <nav class="mt-5">
+            <ul class="pagination pagination-lg justify-content-center flex-wrap gap-1">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <a href="javascript:void(0);" class="page-link rounded-pill shadow-sm border-0 text-success px-3 py-2"
+                       @onclick="PreviousPage" @onclick:preventDefault>
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+
+                @{
+                    int startPage = Math.Max(1, currentPage - 2);
+                    int endPage = Math.Min(totalPages, startPage + 4);
+
+                    if (endPage - startPage < 4 && totalPages > 5)
+                    {
+                        startPage = Math.Max(1, endPage - 4);
+                    }
+
+                    if (startPage > 1)
+                    {
+                        <li class="page-item">
+                            <a href="javascript:void(0);" class="page-link rounded-pill border-0 shadow-sm px-3 py-2"
+                               @onclick="() => ChangePage(1)" @onclick:preventDefault>1</a>
+                        </li>
+                        if (startPage > 2)
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link border-0 bg-transparent shadow-none">...</span>
+                            </li>
+                        }
+                    }
+
+                    for (int i = startPage; i <= endPage; i++)
+                    {
+                        var pageNumber = i;
+                        <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                            <a href="javascript:void(0);"
+                               class="page-link rounded-pill border-0 shadow-sm px-3 py-2 @(currentPage == pageNumber ? "bg-success text-white" : "text-success")"
+                               @onclick="() => ChangePage(pageNumber)"
+                            @onclick:preventDefault>@pageNumber</a>
+                        </li>
+                    }
+
+                    if (endPage < totalPages)
+                    {
+                        if (endPage < totalPages - 1)
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link border-0 bg-transparent shadow-none">...</span>
+                            </li>
+                        }
+                        <li class="page-item">
+                            <a href="javascript:void(0);" class="page-link rounded-pill border-0 shadow-sm px-3 py-2"
+                               @onclick="() => ChangePage(totalPages)" @onclick:preventDefault>@totalPages</a>
+                        </li>
+                    }
+                }
+
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <a href="javascript:void(0);" class="page-link rounded-pill shadow-sm border-0 text-success px-3 py-2"
+                       @onclick="NextPage" @onclick:preventDefault>
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+}
+</div>
+
+
+
+@code {
+    private List<News> allNews = new();
+    private News news;
+    private List<News> pagedNewsList = new();
+    private int currentPage = 1;
+    private int pageSize = 6;
+    private int totalPages = 1;
+    private bool isLoading = true;
+
+    private string _searchQuery = string.Empty;
+    private DateTime? _selectedDate;
+    private Timer? debounceTimer;
+
+    private DateTime? selectedDate
+    {
+        get => _selectedDate;
+        set
+        {
+            _selectedDate = value;
+            ApplyFilters(); // กรองทุกครั้งที่มีการเลือกวัน
+        }
+    }
+    private string searchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            _searchQuery = value;
+
+            debounceTimer?.Dispose();
+            debounceTimer = new Timer(_ =>
+            {
+                InvokeAsync(() =>
+                {
+                    ApplyFilters();
+                    StateHasChanged();
+                });
+            }, null, 350, Timeout.Infinite); // 250ms debounce
+        }
+    }
+    private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+   
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        allNews = await NewsService.GetAllNews() ?? new List<News>();
+
+        if (allNews.Any())
+        {
+            allNews = allNews.OrderByDescending(n => n.DateStart).ToList();
+            totalPages = (int)Math.Ceiling(allNews.Count / (double)pageSize);
+            LoadCurrentPage();
+        }
+        else
+        {
+            pagedNewsList = new List<News>();
+            totalPages = 1;
+        }
+
+        isLoading = false;
+    }
+
+   private List<string> GetImages(News newsItem)
+{
+    if (string.IsNullOrEmpty(newsItem?.Images))
+        return new List<string>();
+
+    var imageNames = newsItem.Images.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(img => img.Trim())
+                                    .ToList();
+
+    var imageUrls = imageNames.Select(img =>
+    {
+        var fileName = Path.GetFileName(img);
+        return $"{BaseUrl}/images/News/{fileName}";
+    }).ToList();
+
+    return imageUrls;
+}
+
+
+    private void ApplyFilters(ChangeEventArgs? e = null)
+    {
+        currentPage = 1;
+        LoadCurrentPage();
+    }
+
+    private void LoadCurrentPage()
+    {
+        IEnumerable<News> filtered = allNews;
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filtered = filtered.Where(n =>
+                n.Title.Trim().Contains(searchQuery.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                n.News_Content.Trim().Contains(searchQuery.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (selectedDate.HasValue)
+        {
+            // กรองเฉพาะข่าวที่ตรงกับวันเดียวกัน
+            filtered = filtered.Where(n =>
+                n.DateStart.Date == selectedDate.Value.Date);
+        }
+
+        var filteredList = filtered.OrderByDescending(n => n.DateStart).ToList();
+
+        totalPages = (int)Math.Ceiling(filteredList.Count / (double)pageSize);
+
+        pagedNewsList = filteredList
+            .Skip((currentPage - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            LoadCurrentPage();
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            LoadCurrentPage();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            LoadCurrentPage();
+        }
+    }
+
+    private void GoToDetails(int newsId)
+    {
+        NavigationManager.NavigateTo($"News/NewsDetails/{newsId}");
+    }
+}
+
+
+<style>
+    body {
+        background-color: #f9fafb;
+        color: #333;
+    }
+
+    .container {
+        max-width: 1200px;
+    }
+
+    /* Header Section with Hero Banner */
+    .bg-light.rounded-4 {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border-left: 6px solid #198754;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+        .bg-light.rounded-4::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%2398dfba' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+            opacity: 0.5;
+            z-index: 0;
+        }
+
+        .bg-light.rounded-4 .row {
+            position: relative;
+            z-index: 1;
+        }
+
+    .display-5.fw-bold.text-success {
+        background: linear-gradient(90deg, #198754, #25b977);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0px 4px 10px rgba(25, 135, 84, 0.2);
+    }
+
+    .lead.text-muted {
+        font-size: 1.2rem;
+        letter-spacing: 0.5px;
+    }
+
+    .col-lg-4.text-end i.bi-newspaper {
+        filter: drop-shadow(0 10px 15px rgba(25, 135, 84, 0.2));
+    }
+
+    /* Loading Spinner */
+    .spinner {
+        margin: 40px auto;
+        width: 50px;
+        height: 40px;
+        text-align: center;
+        font-size: 10px;
+    }
+
+        .spinner > div {
+            background-color: #198754;
+            height: 100%;
+            width: 6px;
+            display: inline-block;
+            margin-right: 3px;
+            border-radius: 2px;
+        }
+
+    /* Search and Date Picker */
+    .news-search-input, .news-date-picker {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        border-radius: 12px !important;
+    }
+
+        .news-search-input .mud-input-root, .news-date-picker .mud-input-root {
+            background-color: white;
+            border-radius: 8px;
+        }
+
+    /* MudGrid Styling */
+    .pa-4 {
+        margin-bottom: 20px;
+    }
+
+    /* News Cards */
+    .card {
+        border-radius: 16px !important;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+        border: none !important;
+        transition: box-shadow 0.25s ease-in-out, transform 0.25s ease-in-out;
+    }
+
+    .col-lg-4:nth-child(3n+1) .card {
+        border-top: 4px solid #198754;
+    }
+
+    .col-lg-4:nth-child(3n+2) .card {
+        border-top: 4px solid #25b977;
+    }
+
+    .col-lg-4:nth-child(3n+3) .card {
+        border-top: 4px solid #46c693;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    .card-img-top {
+        height: 220px;
+        object-fit: cover;
+        transition: transform 0.25s ease;
+        filter: brightness(0.97);
+    }
+
+    .card:hover .card-img-top {
+        transform: scale(1.05);
+        filter: brightness(1.03);
+    }
+
+    .bg-light.d-flex.align-items-center.justify-content-center {
+        background: linear-gradient(135deg, #f1f3f5 0%, #e9ecef 100%) !important;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .bg-light.d-flex.align-items-center.justify-content-center::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #198754, #20c997);
+        }
+
+    /* News Date Badge */
+    .news-date-badge {
+        padding: 8px 15px !important;
+        border-top-left-radius: 16px !important;
+        background: linear-gradient(135deg, #198754 0%, #20c997 100%) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .date-day {
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+        line-height: 0.9 !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .date-month {
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 1px;
+    }
+
+    /* Card Body */
+    .card-body {
+        position: relative;
+        z-index: 1;
+        padding: 1.5rem !important;
+    }
+
+        .card-body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23198754' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+    .card-title {
+        font-weight: 700 !important;
+        font-size: 1.25rem;
+        color: #343a40;
+        position: relative;
+        display: inline-block;
+        margin-bottom: 1rem !important;
+    }
+
+    .card:hover .card-title {
+        color: #198754;
+    }
+
+    .text-muted.mb-3.d-flex.align-items-center.small {
+        font-weight: 500;
+        color: #6c757d !important;
+        background-color: rgba(25, 135, 84, 0.05);
+        padding: 6px 10px;
+        border-radius: 20px;
+        display: inline-flex !important;
+        width: fit-content;
+    }
+
+        .text-muted.mb-3.d-flex.align-items-center.small i {
+            color: #198754;
+        }
+
+    .news-content-preview {
+        font-size: 0.95rem;
+        line-height: 1.6;
+        color: #6c757d !important;
+        position: relative;
+    }
+
+        .news-content-preview::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background: linear-gradient(transparent, white);
+        }
+
+    /* Read More Button */
+    .btn.btn-success {
+        background: linear-gradient(135deg, #198754 0%, #20c997 100%) !important;
+        border: none !important;
+        padding: 10px 20px !important;
+        box-shadow: 0 4px 15px rgba(25, 135, 84, 0.2);
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+        .btn.btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(25, 135, 84, 0.3);
+        }
+
+        .btn.btn-success:focus {
+            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+        }
+
+    /* Alert Styling */
+    .alert-warning {
+        background-color: #fff8e6;
+        border-color: #ffeeba;
+        color: #856404;
+        border-radius: 12px;
+        padding: 20px;
+        position: relative;
+        border-left: 5px solid #ffc107;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+        .alert-warning::before {
+            content: "⚠️";
+            font-size: 1.5rem;
+            margin-right: 10px;
+            display: block;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .alert-warning p {
+            font-weight: 500;
+            margin-bottom: 0;
+        }
+
+    /* Pagination */
+    .pagination {
+        margin-top: 3rem !important;
+    }
+
+    .page-link {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        transition: transform 0.25s ease, background-color 0.25s ease;
+        margin: 0 3px;
+    }
+
+        .page-link:not(.bg-success):hover {
+            background-color: rgba(25, 135, 84, 0.1);
+            color: #198754;
+            transform: translateY(-2px);
+        }
+
+    .pagination .page-item.active .page-link {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3) !important;
+    }
+
+    .pagination .page-item.disabled .page-link {
+        opacity: 0.5;
+    }
+
+    /* News List Display Info */
+    .d-flex.flex-wrap.justify-content-between.align-items-center {
+        margin-bottom: 1.5rem;
+        padding: 0.75rem 1rem;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+
+        .d-flex.flex-wrap.justify-content-between.align-items-center p {
+            font-weight: 400;
+        }
+
+            .d-flex.flex-wrap.justify-content-between.align-items-center p span {
+                color: #198754;
+            }
+
+    /* Empty State Enhancement */
+    .bg-light.d-flex.align-items-center.justify-content-center {
+        position: relative;
+        overflow: hidden;
+    }
+
+        .bg-light.d-flex.align-items-center.justify-content-center::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(25, 135, 84, 0.03) 25%, transparent 25%, transparent 50%, rgba(25, 135, 84, 0.03) 50%, rgba(25, 135, 84, 0.03) 75%, transparent 75%, transparent);
+            background-size: 20px 20px;
+            z-index: 0;
+        }
+
+        .bg-light.d-flex.align-items-center.justify-content-center i {
+            z-index: 1;
+            opacity: 0.7;
+        }
+
+
+
+    {
+        font-size: 1.4rem !important;
+    }
+
+    .date-month {
+        font-size: 0.8rem !important;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+    }
+
+    .news-content-preview {
+        height: 4rem;
+    }
+
+    .page-link {
+        width: 40px;
+        height: 40px;
+        font-size: 0.9rem;
+    }
+
+    .display-5.fw-bold.text-success {
+        font-size: 2.2rem;
+    }
+
+    .lead.text-muted {
+        font-size: 1rem;
+    }
+
+    }
+
+    /* Row Spacing */
+    .row.g-4 {
+        margin-bottom: 2rem;
+    }
+
+    /* Additional Modern Touch */
+    .text-success {
+        color: #198754 !important;
+    }
+
+    .shadow-sm {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .text-truncate-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        height: 3rem;
+        font-weight: 600;
+    }
+
+    /* News Image */
+    .news-image-container {
+        overflow: hidden;
+        position: relative;
+    }
+
+    .news-content-preview img {
+        display: none;
+    }
+
+    /* Card Hover States */
+    .card {
+        transform: translateY(0);
+    }
+
+    .hover-card {
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12) !important;
+        }
+
+    /* Modern Scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #198754;
+        border-radius: 10px;
+    }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #157347;
+        }
+
+</style>

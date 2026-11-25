@@ -1,0 +1,167 @@
+﻿@page "/attendance/take/{classId:int}/{learningPlanId:int}"
+@inject AttendanceService _attendanceService
+@inject IJSRuntime _jsRuntime
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center my-5">
+        <div class="spinner-border text-primary me-3" role="status">
+            <span class="visually-hidden">กำลังโหลดข้อมูล...</span>
+        </div>
+        <strong class="text-secondary">กำลังโหลดข้อมูล...</strong>
+    </div>
+}
+else
+{
+    <div class="card shadow-sm border-0 rounded-3 mb-4">
+        <div class="card-header bg-primary bg-gradient text-white py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="mb-0 fs-5">
+                    <i class="bi bi-clipboard-check me-2"></i> เช็คชื่อนักเรียน - @attendanceViewModel.LearningPlanName
+                </h3>
+                <span class="badge bg-light text-primary rounded-pill px-3 py-2">
+                    <i class="bi bi-calendar-event me-1"></i>@DateTime.Now.ToString("dd/MM/yyyy")
+                </span>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end">
+            <div style="width: 300px;" class="text-al">
+                <!-- 🔍 Search Box -->
+                <MudTextField @bind-Value="searchString"
+                              Placeholder="ค้นหา (รหัส, ชื่อ, นามสกุล)"
+                              Variant="Variant.Outlined"
+                              Size="Size.Small"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              DebounceInterval="300"
+                              Class="w-100 mb-1 mt-3"
+                              Margin="Margin.Dense"
+                              OnDebounceIntervalElapsed="OnSearchTextChanged" />
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr class="text-center">
+                            <th>รหัส</th>
+                            <th class="text-start">ชื่อ-นามสกุล</th>
+                            <th>สถานะ</th>
+                            <th>เรียนเสริม</th>
+                            <th class="text-start">หมายเหตุ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var record in filteredRecords)
+                        {
+                            var student = attendanceViewModel.Students.FirstOrDefault(s => s.Id == record.StudentId);
+                            if (student != null)
+                            {
+                                <tr @key="record.StudentId">
+                                    <td class="text-center fw-bold">@student.PersonalId</td>
+                                    <td class="text-start">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar bg-light text-primary rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                                <strong>@student.FirstName[0]</strong>
+                                            </div>
+                                            <span>@student.FirstName @student.LastName</span>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <select class="form-select form-select-sm" @bind="record.StudiedType">
+                                            @foreach (var type in Enum.GetValues<StudiedType>())
+                                            {
+                                                <option value="@type">@type.ToString()</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-center align-items-center" style="height: 100%;">
+                                            <MudCheckBox @bind-Value="record.Extraclass"></MudCheckBox>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm" @bind="record.Remarks" placeholder="เพิ่มหมายเหตุ..." />
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white py-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="text-muted mb-2 mb-md-0">
+                    จำนวนนักเรียนทั้งหมด: <span class="fw-bold">@filteredRecords.Count()</span> คน
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-outline-secondary px-4" href="attendance/menu/@classId">
+                        <i class="bi bi-arrow-left-circle-fill me-2"></i> กลับ
+                    </a>
+                    <button class="btn btn-primary px-4" @onclick="SaveAttendance">
+                        <i class="bi bi-save me-2"></i> บันทึกข้อมูล
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+}
+
+@code {
+    [Parameter] public int classId { get; set; }
+    [Parameter] public int learningPlanId { get; set; }
+
+    private AttendanceViewModel attendanceViewModel = new();
+    private bool isLoading = true;
+    private string successMessage = string.Empty;
+    private string searchString = string.Empty;
+    private List<Attendance> filteredRecords = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        attendanceViewModel = await _attendanceService.LoadAttendanceViewModelAsync(classId, learningPlanId);
+        filteredRecords = attendanceViewModel.AttendanceRecords.ToList();
+        isLoading = false;
+    }
+
+    private async Task OnSearchTextChanged(string searchText)
+    {
+        searchString = searchText?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(searchString))
+        {
+            filteredRecords = attendanceViewModel.AttendanceRecords.ToList();
+        }
+        else
+        {
+            var searchLower = searchString.ToLowerInvariant();
+            filteredRecords = attendanceViewModel.AttendanceRecords
+                .Where(record =>
+                {
+                    var student = attendanceViewModel.Students.FirstOrDefault(s => s.Id == record.StudentId);
+                    return student != null && (
+                        student.Id.ToString().Contains(searchLower, StringComparison.OrdinalIgnoreCase) ||
+                        student.FirstName.ToLowerInvariant().Contains(searchLower) ||
+                        student.LastName.ToLowerInvariant().Contains(searchLower) ||
+                        $"{student.FirstName} {student.LastName}".ToLowerInvariant().Contains(searchLower)
+                    );
+                })
+                .ToList();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveAttendance()
+    {
+        await _attendanceService.SaveAttendanceAsync(attendanceViewModel);
+        await _jsRuntime.InvokeVoidAsync("ShowSwal", "test", "บันทึกการเข้าเรียนเรียบร้อยแล้ว");
+
+    }
+}

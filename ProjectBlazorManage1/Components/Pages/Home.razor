@@ -1,0 +1,230 @@
+﻿@page "/"
+@inject NewsService NewsService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>สถาบันพลังจิตตานุภาพ สาขา 58 วัดสิริกาญจนาราม</PageTitle>
+
+<!-- Courses Section -->
+<div id="courses" class="container-fluid py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center fw-bold mb-5" style="color: #2e7d32;">หลักสูตรที่เปิดสอน</h2>
+
+        <div class="row g-4">
+            <!-- Course 1 -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success rounded-circle p-3 me-3">
+                                <i class="bi bi-book text-white"></i>
+                            </div>
+                            <h4 class="card-title mb-0 fw-bold">หลักสูตรครูสมาธิ</h4>
+                        </div>
+                        <p class="card-text">
+                            เป็นสมาธิไฮเทค ทำง่าย เป็นง่าย พัฒนาได้ เหมาะกับคนทั่วไป สามารถใช้ชีวิตทำงานได้ปกติ
+                            ยึดหลักสัมมาปฏิปทาขิปปาภิญญา เรียนทั้งภาคทฤษฎีและปฏิบัติ
+                        </p>
+                        <p class="card-text text-muted">
+                            <i class="bi bi-calendar3 me-2"></i>ทุกวันเสาร์ – อาทิตย์ เป็นเวลา 6 เดือน
+                        </p>
+                    </div>            
+                </div>
+            </div>
+
+            <!-- Course 2 -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success rounded-circle p-3 me-3">
+                                <i class="bi bi-heart text-white"></i>
+                            </div>
+                            <h4 class="card-title mb-0 fw-bold">หลักสูตรชินสาสมาธิ</h4>
+                        </div>
+                        <p class="card-text">
+                            สมาธิชนะใจตนเอง เป็นหลักสูตรเบื้องต้นสำหรับบุคคล ให้เรียนรู้การทำสมาธิแบบง่ายๆ
+                            ใช้เวลาเรียนน้อยและปฏิบัติน้อย แต่ได้ผลมาก
+                        </p>
+                        <p class="card-text text-muted">
+                            <i class="bi bi-calendar3 me-2"></i>ทุกวันอาทิตย์สุดท้ายของเดือน เวลา 09.30 - 16.00 น.
+                        </p>
+                    </div>            
+                </div>
+            </div>
+
+            <!-- Course 3 -->
+            <div class="col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success rounded-circle p-3 me-3">
+                                <i class="bi bi-laptop text-white"></i>
+                            </div>
+                            <h4 class="card-title mb-0 fw-bold">วิทันตสาสมาธิ Online</h4>
+                        </div>
+                        <p class="card-text">
+                            สมาธิไฮเทค ฝึกด้วยตนเอง เรียนง่ายๆ หลังเลิกงาน ในเวลาที่คุณจัดสรรได้
+                            ผ่านแอปพลิเคชั่นไลน์ Line ไม่มีค่าใช้จ่าย
+                        </p>
+                        <p class="card-text text-muted">
+                            <i class="bi bi-clock me-2"></i>เรียนได้ตลอดเวลาที่สะดวก
+                        </p>
+                    </div>
+                  
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Latest News Section -->
+<div class="container my-5">
+    <h2 class="text-center fw-bold mb-4" style="color: #2e7d32;">ข่าวประชาสัมพันธ์ล่าสุด</h2>
+
+    @if (newsList == null)
+    {
+        <div class="d-flex justify-content-center my-5">
+            <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">กำลังโหลดข้อมูลข่าว...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- News Cards Section -->
+        <div class="row g-4">
+            @foreach (var news in newsList.Take(3).OrderBy(p => p.DateStart))
+            {
+                <div class="col-lg-4 col-md-6">
+                    <div class="card h-100 border-0 shadow-sm hover-card overflow-hidden">
+                        <div class="position-relative news-image-container">
+                            @if (GetImages(news).Any())
+                            {
+                                var firstImage = GetImages(news).FirstOrDefault();
+
+                                if (!string.IsNullOrEmpty(firstImage))
+                                {
+                                    <img src="@firstImage"
+                                         class="card-img-top"
+                                         style="height: 220px; object-fit: cover; transition: transform 0.3s ease;"
+                                         alt="ข่าว @news.Title" />
+                                }
+                            }
+                            else
+                            {
+                                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 220px;">
+                                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                                </div>
+                            }
+                            <div class="news-date-badge">
+                                <span class="date-day">@news.DateStart.Day</span>
+                                <span class="date-month">@news.DateStart.ToString("MMM", new System.Globalization.CultureInfo("th-TH"))</span>
+                            </div>
+                        </div>
+
+                        <div class="card-body d-flex flex-column p-4">
+                            <h5 class="card-title fw-bold mb-3 text-truncate-2">@news.Title</h5>
+                            <div class="text-muted mb-3 d-flex align-items-center small">
+                                <i class="bi bi-calendar-event me-2"></i>
+                                @news.DateStart.ToString("d MMMM yyyy", new System.Globalization.CultureInfo("th-TH"))
+                            </div>
+                            <div class="card-text mb-4 news-content-preview">
+                                @((MarkupString)news.News_Content)
+                            </div>
+                            <div class="mt-auto text-end">
+                                <button class="btn btn-success px-4 rounded-pill" @onclick="() => GoToDetails(news.News_Id)">
+                                    <i class="bi bi-book me-2"></i>อ่านเพิ่มเติม
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            }
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="NewsPage" class="btn btn-outline-success">
+                <i class="bi bi-newspaper me-1"></i>ดูข่าวทั้งหมด
+            </a>
+        </div>
+    }
+</div>
+
+<!-- Call to Action -->
+<div class="container-fluid py-5" style="background-color: #e8f5e9;">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold mb-3" style="color: #2e7d32;">เริ่มต้นเรียนรู้การทำสมาธิกับเรา</h2>
+                <p class="lead mb-0">
+                    สถาบันพลังจิตตานุภาพ สาขา 58 วัดสิริกาญจนาราม เปิดสอนหลักสูตรต่างๆ สำหรับทุกคน โดยไม่เสียค่าใช้จ่าย
+                    สนใจสมัครเรียนหรือสอบถามข้อมูลเพิ่มเติมได้ที่นี่
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                <a href="https://www.facebook.com/profile.php?id=100064591852472&locale=th_TH" target="_blank" class="btn btn-success btn-lg">
+                    <i class="bi bi-envelope me-1"></i>ติดต่อสอบถาม
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<News> newsList;
+    private News news;
+    private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        newsList = await NewsService.GetAllNews();
+        // แสดงเฉพาะข่าวล่าสุด 6 ข่าวแรก
+        newsList = newsList
+            .OrderByDescending(x => x.DateStart)
+            .Take(6)
+            .ToList();
+    }
+
+    private void GoToDetails(int newsId)
+    {
+        NavigationManager.NavigateTo($"News/NewsDetails/{newsId}");
+    }
+
+    // เมื่อคลิกที่ปุ่ม "ดูหลักสูตรการสอน" ให้เลื่อนลงไปที่ส่วนของหลักสูตร
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // เพิ่ม Bootstrap Icons สำหรับไอคอนต่างๆ
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                var link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css';
+                document.head.appendChild(link);
+            ");
+        }
+    }
+
+    private List<string> GetImages(News newsItem)
+    {
+        if (string.IsNullOrEmpty(newsItem?.Images))
+            return new List<string>();
+
+        var imageNames = newsItem.Images.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(img => img.Trim())
+                                        .ToList();
+
+        var imageUrls = imageNames.Select(img =>
+        {
+            var fileName = Path.GetFileName(img);
+            return $"{BaseUrl}/images/News/{fileName}";
+        }).ToList();
+
+        return imageUrls;
+    }
+
+}

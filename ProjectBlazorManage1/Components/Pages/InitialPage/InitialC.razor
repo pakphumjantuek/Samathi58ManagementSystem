@@ -1,0 +1,231 @@
+﻿@page "/Initial"
+@inject InitialService InitialService
+@inject IJSRuntime JSRuntime
+
+
+<Modals @ref="initialModal"
+		Title="ระบบจัดการข้อมูลคำนำหน้าชื่อ"
+		IsVisible="showModal"
+		OnConfirm="HandleValidSubmit"
+		OnClose="CloseModal">
+	<ChildContent>
+		<EditForm id="modalForm" Model="@currentInitial" OnValidSubmit="@HandleValidSubmit">
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+
+			@if (currentInitial != null)
+			{
+				<MudTextField T="string"
+							  Label="ชื่อคำนำหน้า"
+							  Variant="Variant.Outlined"
+							  @bind-Value="currentInitial.Initial_Name"
+							  For="@(() => currentInitial.Initial_Name)"
+							  RequiredError="กรุณากรอกชื่อคำนำหน้า" />
+			}
+		</EditForm>
+	</ChildContent>
+</Modals>
+
+@if (IsProcessing)
+{
+	<div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+		<div class="spinner">
+			<div class="rect1"></div>
+			<div class="rect2"></div>
+			<div class="rect3"></div>
+			<div class="rect4"></div>
+			<div class="rect5"></div>
+		</div>
+	</div>
+}
+else
+{
+	<div class="card shadow border-0 mt-4">
+		<div class="card-header bg-dark bg-gradient ml-0 py-3">
+			<div class="row">
+				<div class="col-12 text-center">
+					<h2 class="text-white py-2">ระบบจัดการข้อมูลคำนำหน้าชื่อ</h2>
+				</div>
+			</div>
+		</div>
+		<div class="card-body p-4">
+	<MudDataGrid T="Initial"
+				 Items="@FilteredinItialList"
+				 SortMode="SortMode.Multiple"
+				 Filterable="true"
+				 Hover="true"
+				 Elevation="2"
+				 Dense="true"
+				 Bordered="true"
+				 Striped="true"
+				 RowClick="@(args => ShowEditModal(args.Item))"
+				 Class="custom-datagrid">
+		<ToolBarContent>
+			<MudText Typo="Typo.h6" Color="Color.Primary" Class="font-weight-bold">ระบบจัดการข้อมูลคำนำหน้าชื่อ</MudText>
+			<MudSpacer />
+				    <div style="display: flex; align-items: center; gap: 12px;">
+					<MudTextField @bind-Value="searchString"
+								  Placeholder="ค้นหา..."
+								  Variant="Variant.Outlined"
+								  Size="Size.Small"
+								  Adornment="Adornment.Start"
+								  AdornmentIcon="@Icons.Material.Filled.Search"
+								  Class="mr-2"
+								  Immediate="true"
+								  DebounceInterval="3000"
+								  Style="width: 300px; font-size: 0.875rem;"
+								  Margin="Margin.Dense" />
+			<MudButton Variant="Variant.Filled"
+					   Color="Color.Secondary"
+					   StartIcon="@Icons.Material.Filled.Add"
+					   OnClick="ShowAddModal"
+					   Size="Size.Medium"
+					   Class="add-button">
+				เพิ่มข้อมูลคำนำหน้าชื่อ
+			</MudButton>
+			</div>
+		</ToolBarContent>
+
+		<Columns>
+			<PropertyColumn Property="x => x.Initial_Name"
+							Title="ชื่อคำนำหน้าชื่อ"
+							Filterable="true"
+							Sortable="true"
+							CellStyle="font-size: 14px;" />
+			<TemplateColumn Title="การจัดการ"
+							CellClass="action-column"
+							Sortable="false">
+				<CellTemplate>
+					<MudStack Row="true" Spacing="2">
+						<MudButton Variant="Variant.Outlined"
+								   Color="Color.Primary"
+								   Size="Size.Small"
+								   StartIcon="@Icons.Material.Filled.Edit"
+								   OnClick="@(() => ShowEditModal(context.Item))">
+							แก้ไข
+						</MudButton>
+						<MudButton Variant="Variant.Outlined"
+								   Color="Color.Error"
+								   Size="Size.Small"
+								   StartIcon="@Icons.Material.Filled.Delete"
+								   OnClick="@(() => DeleteInnitail(context.Item.Initial_Id))">
+							ลบ
+						</MudButton>
+					</MudStack>
+				</CellTemplate>
+			</TemplateColumn>
+		</Columns>
+
+		<PagerContent>
+			<MudDataGridPager T="Initial" />
+		</PagerContent>
+	</MudDataGrid>
+		</div>
+	</div>
+}
+
+@code {
+	private List<Initial> initialList = new();
+	private Initial initial = new();
+	private bool IsProcessing { get; set; } = true;
+
+	private Modals initialModal;
+	private bool showModal = false;
+	private Initial currentInitial = new();
+	private bool isEditMode = false;
+
+	private string searchString = string.Empty;
+	private IEnumerable<Initial> FilteredinItialList => initialList
+			.Where(x => string.IsNullOrWhiteSpace(searchString) ||
+					x.Initial_Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+					.OrderBy(p => p.Initial_Id);
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadInitial();
+			IsProcessing = false;
+			StateHasChanged();
+		}
+	}
+
+	private async Task LoadInitial()
+	{
+		initialList = await InitialService.GetInitials();
+	}
+
+	private void ShowAddModal()
+	{
+		currentInitial = new Initial();
+		isEditMode = false;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void ShowEditModal(Initial initial)
+	{
+		currentInitial = new Initial
+			{
+				Initial_Id = initial.Initial_Id,
+				Initial_Name = initial.Initial_Name
+
+			};
+		isEditMode = true;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private void CloseModal()
+	{
+		showModal = false;
+		StateHasChanged();
+	}
+
+	public async Task DeleteInnitail(int id)
+	{
+		bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบหรือไม่?");
+
+		if (confirmDelete)
+		{
+			await InitialService.Delete(id);
+
+			await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบสำเร็จ");
+		}
+		await LoadInitial();
+	}
+
+	private async Task HandleValidSubmit()
+	{
+		try
+		{
+			IsProcessing = true;
+			StateHasChanged();
+
+			if (isEditMode)
+			{
+				await InitialService.UpdateInitial(currentInitial);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "อัพเดทสำเร็จ");
+			}
+			else
+			{
+				await InitialService.AddInitial(currentInitial);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "เพิ่มสำเร็จ");
+			}
+
+			await LoadInitial();
+			showModal = false;
+		}
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+		finally
+		{
+			IsProcessing = false;
+			StateHasChanged();
+		}
+
+	}
+
+}

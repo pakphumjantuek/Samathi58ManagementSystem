@@ -1,0 +1,301 @@
+﻿@page "/personnel-list"
+@inject PersonnelService PersonnelService
+@inject CourseNameService courseNameService
+@inject DhammaCourseService dhammaCourseService
+@inject NavigationManager NavigationManager
+
+<PageTitle>บุคลากร</PageTitle>
+
+<Modals @ref="PersonelModal"
+		Title=""
+		IsVisible="showModal"
+		Size="modal-xl"
+		ShowHeader="false"
+		ShowFooter="false"
+		ShowBackdrop="true"
+		TransparentModal="true"
+		OnClose="CloseModal"
+		ShowConfirmButton="false">
+	<ChildContent>
+		<div class="personnel-modal-ultra bg-white rounded-5 overflow-hidden">
+			<div class="modal-header-ultra position-relative">
+				<div class="overlay-gradient"></div>
+				<div class="container-fluid py-4 position-relative z-1">
+					<div class="d-flex align-items-center justify-content-between">
+						<div class="d-flex align-items-center">
+							<div class="avatar-container me-4 position-relative">
+								@if (!string.IsNullOrWhiteSpace(GetImageUrl(currentPersonnel)))
+								{
+									var firstImage = GetImageUrl(currentPersonnel);
+									<img src="@firstImage"
+										 class="avatar-image rounded-circle"
+										 alt="Profile" />
+								}
+								else
+								{
+									<div class="avatar-placeholder rounded-circle d-flex align-items-center justify-content-center">
+										<i class="bi bi-person text-white opacity-75"></i>
+									</div>
+								}
+								<span class="badge-status position-absolute bottom-0 end-0 mb-1 me-1 rounded-circle bg-success"></span>
+							</div>
+							<div>
+								<h3 class="text-white fw-bold mb-1 name-text">
+									@currentPersonnel?.initial?.Initial_Name
+									@currentPersonnel?.Personnel_Name
+									@currentPersonnel?.Personnel_LastName
+								</h3>
+								<div class="position-badge">
+									@currentPersonnel?.jobPosition?.Position_Name
+								</div>
+							</div>
+						</div>
+						<button class="btn-close-ultra" @onclick="CloseModal">
+							<i class="bi bi-x-lg text-white"></i>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			@* Content Section *@
+			<div class="modal-body-ultra p-0">
+				@if (currentPersonnel != null)
+				{
+					<div class="row g-0">
+						@* Course History *@
+						<div class="col-md-6 p-4 history-section">
+							<div class="section-header mb-4">
+								<i class="bi bi-journal-bookmark-fill me-2"></i>
+								<span>ประวัติหลักสูตร</span>
+							</div>
+
+							@if (currentPersonnel.DhamaHistories?.Any(h => h.CourseName?.Status == true) == true)
+							{
+								<div class="timeline-ultra">
+									@foreach (var history in currentPersonnel.DhamaHistories.Where(h => h.CourseName?.Status == true))
+									{
+										<div class="timeline-item-ultra">
+											<div class="timeline-dot"></div>
+											<div class="timeline-content">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h6 class="mb-1 course-name">@history.CourseName?.Name</h6>
+														<small class="text-muted generation-text">
+															รุ่นที่ @history.generation
+														</small>
+													</div>
+
+												</div>
+											</div>
+										</div>
+									}
+								</div>
+							}
+							else
+							{
+								<div class="empty-state text-center">
+									<i class="bi bi-journal-x"></i>
+									<p>ไม่มีประวัติหลักสูตร</p>
+								</div>
+							}
+						</div>
+
+						@* Dharma History *@
+						<div class="col-md-6 p-4 history-section bg-light-ultra">
+							<div class="section-header mb-4">
+								<i class="bi bi-book-half me-2"></i>
+								<span>ประวัติทางธรรม</span>
+							</div>
+
+							@if (currentPersonnel.DhamaHistories?.Any(h => h.CourseName?.Status == false) == true)
+							{
+								<div class="timeline-ultra">
+									@foreach (var history in currentPersonnel.DhamaHistories.Where(h => h.CourseName?.Status == false))
+									{
+										<div class="timeline-item-ultra">
+											<div class="timeline-dot"></div>
+											<div class="timeline-content">
+												<div class="d-flex justify-content-between align-items-center">
+													<div>
+														<h6 class="mb-1 course-name">@history.CourseName?.Name</h6>
+														<small class="text-muted generation-text">
+															รุ่นที่ @history.generation
+														</small>
+													</div>
+
+												</div>
+											</div>
+										</div>
+									}
+								</div>
+							}
+							else
+							{
+								<div class="empty-state text-center">
+									<i class="bi bi-book"></i>
+									<p>ไม่มีประวัติทางธรรม</p>
+								</div>
+							}
+						</div>
+					</div>
+				}
+				else
+				{
+					<div class="no-data-state">
+						<i class="bi bi-exclamation-octagon"></i>
+						<h4>ไม่พบข้อมูลบุคลากร</h4>
+						<p>กรุณาตรวจสอบอีกครั้งหรือติดต่อผู้ดูแลระบบ</p>
+					</div>
+				}
+			</div>
+		</div>
+	</ChildContent>
+
+</Modals>
+
+@if (IsProcessing)
+{
+	<div class="position-absolute w-75 h-75 d-flex flex-column align-items-center bg-white justify-content-center">
+		<div class="spinner">
+			<div class="rect1"></div>
+			<div class="rect2"></div>
+			<div class="rect3"></div>
+			<div class="rect4"></div>
+			<div class="rect5"></div>
+		</div>
+	</div>
+}
+else
+{
+	<div class="page-content">
+		<div class="container-fluid py-5">
+			<div class="row justify-content-center">
+				<div class="col-lg-10">
+					<h1 class="text-center mb-5 fw-bold position-relative">
+						<span class="position-relative">
+							คณะผู้บริหาร
+							<span class="position-absolute start-0 bottom-0 w-100 bg-primary" style="height: 4px; opacity: 0.6;"></span>
+						</span>
+					</h1>
+
+					@if (personnelList == null)
+					{
+						<div class="loading-container">
+							<div class="spinner-border text-primary loading-spinner" role="status">
+								<span class="visually-hidden">กำลังโหลดข้อมูล...</span>
+							</div>
+							<p class="text-center text-muted mt-3">กำลังโหลดข้อมูล...</p>
+						</div>
+					}
+					else if (!personnelList.Any(p => p.Status))
+					{
+						<div class="alert alert-info text-center">
+							<i class="bi bi-info-circle me-2"></i>ไม่พบข้อมูลคณะผู้บริหาร
+						</div>
+					}
+					else
+					{
+						<div class="row g-4 personnel-grid">
+							@foreach (var item in personnelList.Where(p => p.Status).OrderBy(p => p.jobPosition.Position_Level))
+							{
+								<div class="col-md-6 col-lg-4 col-xl-3">
+									<div class="card h-100 shadow-sm border-0 personnel-card">
+										<div class="card-body text-center p-4">
+											<div class="position-relative mb-4 profile-image-container">
+												@if (!string.IsNullOrWhiteSpace(GetImageUrl(item)))
+												{
+													<img src="@GetImageUrl(item)"
+														 class="img-thumbnail rounded-circle border-3 border-white shadow-sm"
+														 style="width: 180px; height: 180px; object-fit: cover;"
+														 alt="Profile" />
+												}
+												else
+												{
+													<div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto shadow-sm"
+														 style="width: 180px; height: 180px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+														<i class="bi bi-person text-muted" style="font-size: 4rem;"></i>
+													</div>
+												}
+											</div>
+
+											<div class="position-badge">
+												<span class="badge bg-success text-white py-2 px-3 rounded-pill">
+													@item.jobPosition.Position_Name
+												</span>
+											</div>
+
+											<h5 class="mt-4 mb-3 fw-bold">
+												@item.initial.Initial_Name @item.Personnel_Name @item.Personnel_LastName
+											</h5>
+											<button class="btn btn-outline-success mt-3"
+													@onclick="() => ShowDetailModal(item)">
+												<i class="bi bi-eye-fill me-1"></i> ดูรายละเอียด
+											</button>
+										</div>
+									</div>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+
+@code {
+	private List<Personnel> personnelList;
+
+	private Modals PersonelModal;
+	private bool showModal = false;
+	private Personnel currentPersonnel = new();
+	private List<CourseName> _CourseName = new();
+	private List<DhammaCourse> _dhammaCourses = new();
+	private bool IsProcessing { get; set; } = true;
+	private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadPersonnel();
+		IsProcessing = false;
+
+	}
+
+	private async Task LoadPersonnel()
+	{
+		personnelList = await PersonnelService.GetAllPersonels();
+
+	}
+	private void CloseModal()
+	{
+		showModal = false;
+		StateHasChanged();
+	}
+	private void ShowDetailModal(Personnel personnel)
+	{
+		currentPersonnel = personnel;
+		showModal = true;
+		StateHasChanged();
+	}
+
+	private string GetImageUrl(Personnel personnel)
+	{
+		if (string.IsNullOrWhiteSpace(personnel.images))
+			return string.Empty;
+
+		var fileName = Path.GetFileName(personnel.images);
+		var imageUrl = $"{BaseUrl}/images/Personnel/{fileName}";
+
+		return imageUrl;
+	}
+}
+
+
+<style>
+
+
+</style>
+
+

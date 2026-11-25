@@ -1,0 +1,474 @@
+﻿@page "/personnel/details/{personnelId:int}"
+@inject PersonnelService PersonnelService
+@inject DhammaCourseService dhammaCourseService
+@inject CourseNameService courseNameService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<Modals @ref="DhammaCourseModal"
+		Title="เพิ่ม/แก้ไขประวัติหลักสูตร"
+		IsVisible="showModalDhammaCourse"
+		OnConfirm="HandleValidSubmitDhama"
+		OnClose="CloseModalDhammaCourse"
+		FormId="DhammaCourseForm">
+
+	<ChildContent>
+		<EditForm id="DhammaCourseForm" Model="@currentDhammaCourse" OnValidSubmit="@HandleValidSubmitDhama">
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+
+			<div class="col-md-12">
+				<MudItem xs="12">
+					<MudSelect T="int"
+							   Label="ประวัติ"
+							   @bind-Value="currentDhammaCourse.CourseName_Id"
+							   Required="true"
+							   RequiredError="โปรดเลือกประวัติ"
+							   Dense="true"
+							   Variant="Variant.Text"
+							   Class="my-2">
+						<MudSelectItem Value="0" Disabled="true">--โปรดเลือกประวัติ--</MudSelectItem>
+						@if (isCourse)
+						{
+							@foreach (var cn in _CourseName.Where(p => p.Status))
+							{
+								<MudSelectItem Value="@cn.Id">@cn.Name</MudSelectItem>
+							}
+						}
+						else{
+							@foreach (var cn in _CourseName.Where(p => !p.Status))
+							{
+								<MudSelectItem Value="@cn.Id">@cn.Name</MudSelectItem>
+							}
+
+						}
+					</MudSelect>
+				</MudItem>
+
+				<MudTextField T="int"
+							  Label="รุ่นที่"
+							  @bind-Value="currentDhammaCourse.generation"
+							  For="@(() => currentDhammaCourse.generation)"
+							  RequiredError="กรุณากรอกรุ่นที่" />
+
+			</div>
+		</EditForm>
+	</ChildContent>
+</Modals>
+
+<div class="container-fluid py-4">
+	@if (personnel == null)
+	{
+		<div class="d-flex justify-content-center">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">กำลังโหลด...</span>
+			</div>
+		</div>
+	}
+	else
+	{
+		<div class="card shadow-sm mb-4">
+			<div class="card-header bg-secondary bg-gradient text-white">
+				<div class="d-flex align-items-center">
+					<h2 class="mb-0 fs-4"><i class="bi bi-person-badge me-2"></i>ข้อมูลอาจารย์</h2>
+					<a href="Personnel" class="btn btn-light btn-sm ms-auto">
+						<i class="bi bi-arrow-left me-1"></i>กลับ
+					</a>
+				</div>
+			</div>
+
+			<div class="card-body">
+				<div class="row mb-4">
+					<!-- รูปภาพอาจารย์ -->
+					<div class="col-lg-2 col-md-3 text-center mb-4 mb-md-0">
+						<div class="avatar-container position-relative mx-auto" style="width: 150px; height: 150px;">
+							@if (!string.IsNullOrEmpty(personnel.images))
+							{
+								var firstImage = GetImageUrl();
+								if (!string.IsNullOrEmpty(firstImage))
+								{
+									<img src="@firstImage" class="img-thumbnail rounded-circle w-100 h-100 object-fit-cover" alt="@personnel.Personnel_Name" />
+								}
+								else
+								{
+									<div class="avatar-placeholder bg-light rounded-circle w-100 h-100 d-flex align-items-center justify-content-center" style="font-size: 3rem; color: #6c757d;">
+										<i class="bi bi-person"></i>
+									</div>
+								}
+							}
+							else
+							{
+								<div class="avatar-placeholder bg-light rounded-circle w-100 h-100 d-flex align-items-center justify-content-center" style="font-size: 3rem; color: #6c757d;">
+									<i class="bi bi-person"></i>
+								</div>
+							}
+
+							@if (!string.IsNullOrEmpty(personnel.images) && personnel.images.Split(',').Length > 1)
+							{
+								<span class="position-absolute bottom-0 end-0 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 12px;">
+									+@(personnel.images.Split(',').Length - 1)
+								</span>
+							}
+						</div>
+						<h3 class="mt-3 fs-5">@personnel.Personnel_Name @personnel.Personnel_LastName</h3>
+					</div>
+
+					<!-- ข้อมูลทั่วไป -->
+					<div class="col-lg-10 col-md-9">
+						<div class="row">
+							<div class="col-md-6">
+								<div class="card h-100 border-0 bg-light">
+									<div class="card-body">
+										<h5><i class="bi bi-person-vcard me-2"></i>ข้อมูลทั่วไป</h5>
+										<hr>			
+										<div class="row mb-2">
+											<div class="col-sm-4 text-muted">ชื่อ-นามสกุล:</div>
+											<div class="col-sm-8">@personnel.Personnel_Name @personnel.Personnel_LastName</div>
+										</div>
+										<div class="row mb-2">
+											<div class="col-sm-4 text-muted">เบอร์โทร:</div>
+											<div class="col-sm-8">@personnel.Phone_Number)</div>
+										</div>									
+									</div>
+								</div>
+							</div>
+							<div class="col-md-6">
+								<div class="card h-100 border-0 bg-light">
+									<div class="card-body">
+										<h5><i class="bi bi-gear me-2"></i>จัดการข้อมูล</h5>
+										<hr>
+										<div class="d-flex gap-2 flex-wrap justify-content-center">
+											@* <a @onclick="() => ShowAddModal()" class="btn btn-outline-success"> *@
+											@* 	<i class="bi bi-plus-circle me-1"></i>เพิ่มประวัติการศึกษา *@
+											@* </a> *@
+											<a @onclick="() => ShowAddDhammaCourseModal()" class="btn btn-outline-success">
+												<i class="bi bi-journal-plus me-1"></i>เพิ่มประวัติทางธรรม
+											</a>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- แท็บข้อมูล -->
+				<ul class="nav nav-tabs" id="myTab" role="tablist">
+					<li class="nav-item" role="presentation">
+						<button class="nav-link @(activeTab == "personal" ? "active" : "")"
+								@onclick='() => SwitchTab("personal")'>
+
+							<i class="bi bi-person-lines-fill me-1"></i>ประวัติส่วนตัว
+						</button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link @(activeTab == "education" ? "active" : "")"
+								@onclick='() => SwitchTab("education")'>
+
+							<i class="bi bi-person-lines-fill me-1"></i>ประวัติการศึกษา
+						</button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link @(activeTab == "dhamma" ? "active" : "")"
+								@onclick='() => SwitchTab("dhamma")'>
+
+							<i class="bi bi-person-lines-fill me-1"></i>ประวัติทางธรรม
+						</button>
+					</li>
+					<li class="nav-item" role="presentation">
+						<button class="nav-link @(activeTab == "course" ? "active" : "")"
+								@onclick='() => SwitchTab("course")'>
+
+							<i class="bi bi-person-lines-fill me-1"></i>ประวัติหลักสูตร
+						</button>
+					</li>
+				</ul>
+
+				<div class="tab-content pt-3">
+					<!-- ประวัติส่วนตัว -->
+					<div class="@(activeTab == "personal" ? "tab-pane fade show active" : "tab-pane fade")">
+						<div class="card shadow-sm p-4">
+							<h5 class="mb-3"><i class="bi bi-person-lines-fill me-2"></i>ข้อมูลประวัติส่วนตัว</h5>
+
+							<div class="row mb-2">
+								<div class="col-sm-2 text-muted">ชื่อ-นามสกุล:</div>
+								<div class="col-sm-8">@personnel.Personnel_Name @personnel.Personnel_LastName</div>
+							</div>
+
+							<div class="row mb-2">
+								<div class="col-sm-2 text-muted">เบอร์โทร:</div>
+								<div class="col-sm-8">@personnel.Phone_Number)</div>
+							</div>					
+						</div>
+					</div>
+
+					
+
+					<!-- ประวัติทางธรรม -->
+					<div class="@(activeTab == "dhamma" ? "tab-pane fade show active" : "tab-pane fade")">
+						@if (personnel?.DhamaHistories?.Any() == true)
+						{
+							<div class="card shadow-sm p-4">
+								<div class="d-flex justify-content-between align-items-center mb-3">
+									<h5 class="mb-0"><i class="bi bi-book me-2"></i>ประวัติทางธรรม</h5>
+									<button @onclick="@(() => ShowAddDhammaCourseModal(false))" class="btn btn-sm btn-primary">
+										<i class="bi bi-plus-circle me-1"></i>เพิ่มประวัติ
+									</button>
+								</div>
+
+								<div class="table-responsive">
+									<table class="table table-hover">
+										<thead>
+											<tr>
+												<th>รุ่นที่เรียน</th>
+												<th>หลักสูตร</th>
+											</tr>
+										</thead>
+										<tbody>
+											@foreach (var dha in personnel.DhamaHistories.Where(d => d.CourseName != null && d.CourseName.Status == false))
+											{
+												<tr>
+													<td>@dha.generation</td>
+													<td>@dha.CourseName.Name</td>
+
+													<td>
+														<button @onclick="@(() => ShowEditDhammaCourseModal(dha))" class="btn btn-sm btn-warning me-2">
+															<i class="bi bi-pencil"></i>
+														</button>
+														<button @onclick="@(() => Deletedhama(dha.Id))" class="btn btn-sm btn-danger">
+															<i class="bi bi-trash"></i>
+														</button>
+													</td>
+												</tr>
+											}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						}
+						else
+						{
+							<div class="alert alert-info text-center py-4">
+								<i class="bi bi-info-circle fs-2 d-block mb-2"></i>
+								<p class="mb-0">ไม่มีข้อมูลทางธรรม</p>
+								<button @onclick="@(() => ShowAddDhammaCourseModal(false))" class="btn btn-primary mt-3">
+									<i class="bi bi-plus-circle me-1"></i>เพิ่มประวัติทางธรรม
+								</button>
+							</div>
+						}
+					</div>
+
+
+					<!-- ประวัติหลักสูตร -->
+					<div class="@(activeTab == "course" ? "tab-pane fade show active" : "tab-pane fade")">
+						@if (personnel?.DhamaHistories?.Any() == true)
+						{
+							<div class="card shadow-sm p-4">
+								<div class="d-flex justify-content-between align-items-center mb-3">
+									<h5 class="mb-0"><i class="bi bi-book me-2"></i>ประวัติหลักสูตร</h5>
+									<button @onclick="@(() => ShowAddDhammaCourseModal(true))" class="btn btn-sm btn-primary">
+										<i class="bi bi-plus-circle me-1"></i>เพิ่มประวัติ
+									</button>
+								</div>
+
+								<div class="table-responsive">
+									<table class="table table-hover">
+										<thead>
+											<tr>
+												<th>รุ่นที่เรียน</th>
+												<th>หลักสูตร</th>
+											</tr>
+										</thead>
+										<tbody>
+											@foreach (var dha in personnel.DhamaHistories.Where(d => d.CourseName != null && d.CourseName.Status == true))
+											{
+												@if (dha.CourseName.Status == true)
+												{
+													<tr>
+														<td>@dha.generation</td>
+														<td>@dha.CourseName.Name</td>
+
+														<td>
+															<button @onclick="@(() => ShowEditDhammaCourseModal(dha))" class="btn btn-sm btn-warning me-2">
+																<i class="bi bi-pencil"></i>
+															</button>
+															<button @onclick="@(() => Deletedhama(dha.Id))" class="btn btn-sm btn-danger">
+																<i class="bi bi-trash"></i>
+															</button>
+														</td>
+													</tr>
+												}
+											}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						}
+						else
+						{
+							<div class="alert alert-info text-center py-4">
+								<i class="bi bi-info-circle fs-2 d-block mb-2"></i>
+								<p class="mb-0">ไม่มีข้อมูลทางธรรม</p>
+								<button @onclick="@(() => ShowAddDhammaCourseModal(true))" class="btn btn-primary mt-3">
+									<i class="bi bi-plus-circle me-1"></i>เพิ่มประวัติทางธรรม
+								</button>
+							</div>
+						}
+					</div>
+
+				</div>
+			</div>
+		</div>
+	}
+</div>
+
+@if (ModalDisplay == "block")
+{
+	<div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+	[Parameter]
+	public int PersonnelId { get; set; }
+	private Personnel personnel;
+	private IEnumerable<CourseName> _CourseName = new List<CourseName>();
+
+	private string activeTab = "personal";
+	private string ModalDisplay = "none";
+	private string ModalClass = "";
+	private bool isGenerating = false;
+
+	private Modals EducationModal;
+	private Modals DhammaCourseModal;
+	private bool showModal = false;
+	private EducationHistory currentEducationHistory = new();
+	private DhammaCourse currentDhammaCourse = new();
+	private string BaseUrl => NavigationManager.BaseUri.TrimEnd('/');
+
+	private bool isEditMode = false;
+	private bool showModalDhammaCourse = false;
+	private bool isCourse = false;
+
+	private void SwitchTab(string tabName)
+	{
+		activeTab = tabName;
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		await LoadPersonnel();
+	}
+
+	private async Task LoadPersonnel()
+	{
+		personnel = await PersonnelService.GetPersonnelById(PersonnelId);
+		_CourseName = await courseNameService.GetAllCourseNames();
+
+	}
+
+	private void CloseModal()
+	{
+		ModalDisplay = "none";
+		ModalClass = "";
+	}
+
+	private void ShowAddDhammaCourseModal(bool course = false)
+	{
+		currentDhammaCourse = new DhammaCourse
+			{
+				Personnel_Id = PersonnelId
+			};
+		isCourse = course;
+		isEditMode = false;
+		showModalDhammaCourse = true;
+		StateHasChanged();
+	}
+
+	
+	private void ShowEditDhammaCourseModal(DhammaCourse dhammaCourse)
+	{
+		currentDhammaCourse = new DhammaCourse
+			{
+				Id = dhammaCourse.Id,
+				generation = dhammaCourse.generation,
+				CourseName_Id = dhammaCourse.CourseName_Id,
+				Personnel_Id = dhammaCourse.Personnel_Id,
+			};
+
+		// ค้นหาหลักสูตรในรายการเพื่อดูว่า Status เป็นอะไร
+		var course = _CourseName.FirstOrDefault(c => c.Id == dhammaCourse.CourseName_Id);
+		isCourse = course?.Status ?? false;
+
+		isEditMode = true;
+		showModalDhammaCourse = true;
+		StateHasChanged();
+	}
+
+	private string GetImageUrl()
+	{
+		var fileName = Path.GetFileName(personnel.images);
+
+		var imageUrl = $"{BaseUrl}/images/Personnel/{fileName}";
+
+		return imageUrl;
+	}
+
+	private void CloseModals()
+	{
+		showModal = false;
+		StateHasChanged();
+	}
+
+	private void CloseModalDhammaCourse()
+	{
+		showModalDhammaCourse = false;
+		StateHasChanged();
+	}
+
+
+	private async Task HandleValidSubmitDhama()
+	{
+		try
+		{
+			if (isEditMode)
+			{
+				await dhammaCourseService.UpdateDhamma(currentDhammaCourse);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "อัพเดทสำเร็จ");
+			}
+			else
+			{
+				await dhammaCourseService.AddDhamma(currentDhammaCourse);
+				await JSRuntime.InvokeAsync<bool>("ShowSwal", "test", "เพิ่มสำเร็จ");
+			}
+
+			await LoadPersonnel();
+			showModalDhammaCourse = false;
+		}
+
+		catch (Exception ex)
+		{
+			await JSRuntime.InvokeVoidAsync("showToastr", "error", $"เกิดข้อผิดพลาด: {ex.Message}");
+		}
+		finally
+		{
+			StateHasChanged();
+		}
+	}
+
+
+	public async Task Deletedhama(int id)
+	{
+		bool confirmDelete = await JSRuntime.InvokeAsync<bool>("ShowSwal", "success", "คุณแน่ใจที่จะลบหรือไม่?");
+
+		if (confirmDelete)
+		{
+			await dhammaCourseService.DeleteDhamma(id);
+
+			await JSRuntime.InvokeVoidAsync("showToastr", "success", "ลบสำเร็จ");
+		}
+		await LoadPersonnel();
+	}
+
+
+}

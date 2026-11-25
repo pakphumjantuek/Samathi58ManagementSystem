@@ -1,0 +1,51 @@
+﻿@page "/student-to-teacher/{studentId:int}"
+@inject StudentService StudentService
+@inject NavigationManager Navigation
+
+<div class="container mt-4">
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-success shadow-sm">
+            <i class="oi oi-check mr-2"></i> @message
+        </div>
+        <button class="btn btn-primary" @onclick="GoToTeacherPage">
+            <i class="oi oi-arrow-left mr-2"></i> กลับไปหน้านักศึกษา
+        </button>
+    }
+    else
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="sr-only">กำลังดำเนินการ...</span>
+            </div>
+            <h4 class="text-primary mt-3">กำลังดำเนินการ...</h4>
+            <p class="text-muted">กำลังแปลงข้อมูลนักศึกษาเป็นผู้อาจารย์จริยา กรุณารอสักครู่</p>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int studentId { get; set; }
+    private string message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var newTeacher = await StudentService.ConvertStudentToTeacherAsync(studentId);
+            message = $"แปลงข้อมูลนักเรียน {newTeacher.Teacher_Name} เป็นผู้สอนเรียบร้อยแล้ว";
+            // 🕒 หน่วงเวลา 2 วิ แล้วค่อยไปหน้า Teacher
+            await Task.Delay(2000);
+            Navigation.NavigateTo("Teacher");
+        }
+        catch (Exception ex)
+        {
+            message = $"เกิดข้อผิดพลาด: {ex.Message}";
+        }                                                                
+    }
+
+    private void GoToTeacherPage()
+    {
+        Navigation.NavigateTo("Student");
+    }
+}

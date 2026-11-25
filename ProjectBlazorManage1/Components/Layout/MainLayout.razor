@@ -1,0 +1,146 @@
+﻿@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<MudThemeProvider />
+<MudPopoverProvider />
+
+<style>
+    /* Global Layout Styles */
+    .page {
+        display: flex;
+        width: 100%;
+        min-height: 100vh;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+        width: 240px;
+        height: 100vh;
+        position: fixed;
+        left: 0;
+        top: 0;
+        background-color: #343a40;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        overflow-y: auto;
+        z-index: 1000;
+    }
+
+    /* Main Content Styles */
+    main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+        /* When sidebar is visible, adjust main content */
+        main.with-sidebar {
+            margin-left: 240px;
+            width: calc(100% - 240px);
+        }
+
+    /* Content area */
+    article.content {
+        flex: 1 0 auto;
+        padding: 1.5rem;
+    }
+
+    /* Error UI */
+    #blazor-error-ui {
+        background-color: #ffffe0;
+        bottom: 0;
+        box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+        display: none;
+        left: 0;
+        padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+        position: fixed;
+        width: 100%;
+        z-index: 1000;
+    }
+
+        #blazor-error-ui .dismiss {
+            cursor: pointer;
+            position: absolute;
+            right: 0.75rem;
+            top: 0.5rem;
+        }
+
+  
+</style>
+
+<div class="page">
+    <AuthorizeView Roles="@SD.Role_Admin">
+        <Authorized>
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+            <main class="with-sidebar">
+                <article class="content px-4">
+                    @Body
+                </article>
+            </main>
+        </Authorized>
+        <NotAuthorized>
+            <main>
+                @if (_navBarVisible && !_isAuthPage)
+                {
+                    <NavBar></NavBar>
+                }
+                <article class="content px-4">
+                    @Body
+                </article>
+                @if (_navBarVisible && !_isAuthPage)
+                {
+                    <Footer />
+                }
+            </main>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _navBarVisible;
+    private bool _isAuthPage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _navBarVisible = await ShowNavBar();
+        CheckIfAuthPage();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _navBarVisible = await ShowNavBar();
+            CheckIfAuthPage();
+            StateHasChanged();
+        }
+    }
+
+    private async Task<bool> ShowNavBar()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var authenticated = user.Identity is not null && user.Identity.IsAuthenticated;
+        if (!authenticated || !user.IsInRole(SD.Role_Admin))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private void CheckIfAuthPage()
+    {
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).ToLower();
+        _isAuthPage = relativePath.Contains("login") || relativePath.Contains("register");
+    }
+}

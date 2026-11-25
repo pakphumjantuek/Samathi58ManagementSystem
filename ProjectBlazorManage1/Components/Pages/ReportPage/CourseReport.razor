@@ -1,0 +1,206 @@
+﻿@page "/Reports/{ClassId:int}"
+@using ProjectBlazorManage1.Model.Dtos
+@inject IJSRuntime JSRuntime
+@inject ApplicationDbContext _context
+@inject ReportService _reportService
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-lg border-0 rounded-lg mb-4">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h2 class="text-center mb-0 py-3 fw-bold">รายงานผลการเรียนหลักสูตร ชั้นเรียนที่ @ClassInfo?.Id</h2>
+                </div>
+                <div class="card-body">
+                    @if (IsLoading)
+                    {
+                        <div class="d-flex justify-content-center align-items-center" style="height: 200px;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (ClassInfo == null)
+                    {
+                        <div class="alert alert-danger text-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span>ไม่พบข้อมูลชั้นเรียน</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-striped align-middle" id="reportTable">
+                                <thead class="bg-light">
+                                    <tr class="text-center fw-bold">
+                                        <th rowspan="2" class="align-middle bg-primary text-white">ที่</th>
+                                        <th rowspan="2" class="align-middle bg-primary text-white">รหัสประจำตัว</th>
+                                        <th colspan="1" class="bg-info text-white">ภาษาไทย</th>
+                                        <th colspan="1" class="bg-info text-white">ภาษาอังกฤษ</th>
+                                        <th colspan="3" class="bg-success text-white">หัวข้อที่เรียน</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">ปฐมนิเทศ</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">กิจกรรมสัมพันธ์ 1</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">กิจกรรมสัมพันธ์ 2</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">กิจกรรมสัมพันธ์ 3 และพิธีปัจฉิมนิเทศ</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">แสดงความรู้สึก</th>
+                                        <th rowspan="2" class="align-middle bg-secondary text-white">สอบ</th>
+                                        <th rowspan="2" class="align-middle bg-warning text-dark">เรียนต่างสาขา</th>
+                                        <th rowspan="2" class="align-middle bg-warning text-dark">เรียนเสริม</th>
+                                        <th rowspan="2" class="align-middle bg-warning text-dark">เรียนเสริมพิเศษ</th>
+                                        <th rowspan="2" class="align-middle bg-warning text-dark">โอนหน่วยกิต</th>
+                                        <th colspan="4" class="bg-danger text-white">รวม</th>
+                                        <th colspan="2" class="bg-dark text-white">สรุป</th>
+                                    </tr>
+                                    <tr class="text-center fw-bold">
+                                        <th class="bg-info text-white">ชื่อ-นามสกุล</th>
+                                        <th class="bg-info text-white">Name Title</th>
+                                        <th class="bg-success text-white">เล่ม 1</th>
+                                        <th class="bg-success text-white">เล่ม 2</th>
+                                        <th class="bg-success text-white">เล่ม 3</th>
+                                        <th class="bg-danger text-white">คะแนน</th>
+                                        <th class="bg-danger text-white">ชั่วโมง</th>
+                                        <th class="bg-danger text-white">การบ้าน</th>
+                                        <th class="bg-danger text-white">จำนวนชั่วโมง</th>
+                                        <th class="bg-dark text-white">สิทธิสอบ</th>
+                                        <th class="bg-dark text-white">ใบขยัน</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var (student, index) in Students.Select((value, i) => (value, i + 1)))
+                                    {
+                                        var metrics = StudentMetricsDict[student.Id];
+                                        <tr>
+                                            <td class="text-center fw-bold">@index</td>
+                                            <td class="small text-truncate">@student.PersonalId</td>
+                                            <td class="text-nowrap">@($"{student.FirstName}-{student.LastName}")</td>
+                                            <td class="text-nowrap">@student.EnglishName</td>
+                                            <td class="text-center fw-bold @(metrics.Book1Score > 0 ? "text-success" : "")">@metrics.Book1Score</td>
+                                            <td class="text-center fw-bold @(metrics.Book2Score > 0 ? "text-success" : "")">@metrics.Book2Score</td>
+                                            <td class="text-center fw-bold @(metrics.Book3Score > 0 ? "text-success" : "")">@metrics.Book3Score</td>
+                                            <td class="text-center @(metrics.OrientationScore > 0 ? "text-success" : "")">@metrics.OrientationScore</td>
+                                            <td class="text-center @(metrics.Activity1Score > 0 ? "text-success" : "")">@metrics.Activity1Score</td>
+                                            <td class="text-center @(metrics.Activity2Score > 0 ? "text-success" : "")">@metrics.Activity2Score</td>
+                                            <td class="text-center @(metrics.Activity3AndClosingScore > 0 ? "text-success" : "")">@metrics.Activity3AndClosingScore</td>
+                                            <td class="text-center @(metrics.FeedbackScore > 0 ? "text-success" : "")">@metrics.FeedbackScore</td>
+                                            <td class="text-center @(metrics.TestScore > 0 ? "text-success" : "")">@metrics.TestScore</td>
+                                            <td class="text-center @(metrics.DifferentBranchScore > 0 ? "text-info" : "")">@metrics.DifferentBranchScore</td>
+                                            <td class="text-center @(metrics.ExtraClassScore > 0 ? "text-info" : "")">@metrics.ExtraClassScore</td>
+                                            <td class="text-center @(metrics.ExtraClassScore2 > 0 ? "text-info" : "")">@metrics.ExtraClassScore2</td>
+                                            <td class="text-center @(student.credit > 0 ? "text-info" : "")">@student.credit</td>
+                                            <td class="text-center font-weight-bold text-primary">@metrics.ExamScore</td>
+                                            <td class="text-center font-weight-bold text-primary">@metrics.TotalHourScore</td>
+                                            <td class="text-center font-weight-bold text-primary">@student.Total</td>
+                                            <td class="text-center font-weight-bold fs-5 @(metrics.TotalScore >= 200 ? "text-success" : "text-danger")">@metrics.TotalScore</td>
+                                            <td class="text-center">
+                                                <span class="badge rounded-pill @(metrics.ExamEligibility ? "bg-success" : "bg-danger") px-3 py-2">
+                                                    @(metrics.ExamEligibility ? "มีสิทธิ์" : "ไม่มีสิทธิ์")
+                                                </span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge rounded-pill @(metrics.DiligenceCertificate ? "bg-success" : "bg-warning") px-3 py-2">
+                                                    @(metrics.DiligenceCertificate ? "ได้รับ" : "ไม่ได้รับ")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-8 mx-auto">
+                                <div class="card shadow border-0 rounded-lg">
+                                    <div class="card-header bg-secondary text-white">
+                                        <h4 class="mb-0 py-2"><i class="bi bi-clipboard-data me-2"></i>สรุปผลการเรียน</h4>
+                                    </div>
+                                    <div class="card-body bg-light">
+                                        <div class="row g-4">
+                                            <div class="col-md-4">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-body text-center">
+                                                        <h5 class="mb-1">จำนวนนักเรียนทั้งหมด</h5>
+                                                        <h2 class="display-4 text-primary mb-0">@Students.Count</h2>
+                                                        <p class="text-muted">คน</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-body text-center">
+                                                        <h5 class="mb-1">มีสิทธิ์สอบ</h5>
+                                                        <h2 class="display-4 text-success mb-0">@StudentMetricsDict.Count(x => x.Value.ExamEligibility)</h2>
+                                                        <p class="text-muted">คน</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-0 shadow-sm h-100">
+                                                    <div class="card-body text-center">
+                                                        <h5 class="mb-1">ได้รับใบขยัน</h5>
+                                                        <h2 class="display-4 text-info mb-0">@StudentMetricsDict.Count(x => x.Value.DiligenceCertificate)</h2>
+                                                        <p class="text-muted">คน</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                         <div class="d-flex justify-content-center mt-4">
+                            <a href="ClassStudie/Timetable/@ClassId" class="btn btn-outline-secondary px-4 py-2 shadow-sm me-2">ย้อนกลับ</a>
+                            <button class="btn btn-success me-2" @onclick="ExportToExcel">
+                                <i class="bi bi-file-earmark-excel me-2"></i>ส่งออก Excel 
+                             </button>
+                         </div> 
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ClassId { get; set; }
+
+    private ClassStudied? ClassInfo;
+    private List<Students> Students = new();
+    private List<LearningPlan> LearningPlans = new();
+    private List<Attendance> AttendanceRecords = new();
+    private Dictionary<int, StudentMetrics> StudentMetricsDict = new();
+    private bool IsLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        var report = await _reportService.GetClassReportAsync(ClassId);
+
+        ClassInfo = report.ClassInfo;
+        if (ClassInfo != null)
+        {
+            LearningPlans = report.LearningPlans;
+            Students = report.Students;
+            AttendanceRecords = report.AttendanceRecords;
+            StudentMetricsDict = report.StudentMetricsDict;
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task ExportToExcel()
+    {
+        try
+        {
+            var excelData = await _reportService.GenerateClassReportExcel(ClassId);
+            var base64ExcelData = Convert.ToBase64String(excelData);
+            await JSRuntime.InvokeVoidAsync("downloadExcelFile", excelData, $"รายงานผลการเรียนหลักสูตร รุ่นที่ {ClassId}.xlsx");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+    }
+ 
+}
+

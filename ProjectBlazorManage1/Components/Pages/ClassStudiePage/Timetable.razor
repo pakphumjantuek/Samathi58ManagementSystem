@@ -1,0 +1,107 @@
+﻿@page "/ClassStudie/Timetable/{Id:int}"
+@inject IJSRuntime JSRuntime
+@inject ClassStudieService ClassStudieService
+@inject LearningPlanService LearningPlanService
+
+<h1 class="text-center my-4 text-primary fw-bold">📅 ตารางเรียนของหลักสูตร</h1>
+
+<div class="d-flex flex-wrap gap-2 justify-content-center mb-4">
+    <button @onclick="ExportToPdf" class="btn btn-danger shadow-sm">
+        <i class="bi bi-file-earmark-pdf-fill me-2"></i>Export PDF
+    </button>
+    <button @onclick="ExportToPdfSecure" class="btn btn-danger shadow-sm">
+        <i class="bi bi-lock-fill me-2"></i>Export PDF (ปลอดภัย)
+    </button>
+    <button @onclick="ExportToExcel" class="btn btn-success shadow-sm">
+        <i class="bi bi-file-earmark-excel-fill me-2"></i>Export Excel
+    </button>
+    <a href=@($"attendance/menu/{Id}") class="btn btn-outline-primary shadow-sm">
+        <i class="bi bi-clock-fill me-2"></i>บันทึกเวลาเรียน
+    </a>
+    <a href=@($"scores/{Id}") class="btn btn-outline-info shadow-sm">
+        <i class="bi bi-journals me-2"></i>บันทึกการบ้าน
+    </a>
+    <a href=@($"Reports/{Id}") class="btn btn-outline-secondary shadow-sm">
+        <i class="bi bi-bar-chart-fill me-2"></i>รายงานผลการเรียน
+    </a>
+   
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-hover text-center align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>📅 วันที่</th>
+                <th>⏰ เวลา</th>
+                <th>📘 รายวิชา</th>
+                <th>🎞 เทปที่</th>
+                <th>👩‍🏫 ผู้บรรยาย</th>
+                <th>📞 เบอร์โทร</th>
+                <th>🏫 สาขา</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (learningPlanList == null || !learningPlanList.Any())
+            {
+                <tr>
+                    <td colspan="7" class="text-center text-muted">ไม่พบข้อมูลตารางเรียน</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var study in learningPlanList.OrderBy(p => p.Date))
+                {
+                    <tr>
+                        <td>@(study.Date?.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("th-TH")) ?? "-")</td>
+                        <td>@study.Time</td>
+                        <td class="text-start">@study.Name</td>
+                        <td>@(decimal.TryParse(study.Tape, out var tapeValue) ? tapeValue.ToString("F2") : "-")</td>
+                        <td>@(study.teacher != null ? $"{study.teacher.Teacher_Name} {study.teacher.Teacher_LastName}" : "-")</td>
+                        <td>@(study.teacher?.Phone_Number ?? "-")</td>
+                        <td>@(study.teacher?.Branch?.Branch_Name ?? "-")</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private IEnumerable<LearningPlan> learningPlanList = new List<LearningPlan>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        learningPlanList = await LearningPlanService.GetLearningPlansByClassStudiedIdAsync(Id);
+    }
+
+    private async Task ExportToExcel()
+    {
+        try
+        {
+            var excelData = await ClassStudieService.GenerateExcel(Id);
+            var base64ExcelData = Convert.ToBase64String(excelData);
+            await JSRuntime.InvokeVoidAsync("downloadExcelFile", excelData, $"ตารางเรียนEXCELรุ่นที่ {Id}.xlsx");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+    }
+
+    private async Task ExportToPdf()
+    {
+        var pdfBytes = await ClassStudieService.GenerateClassSchedulePdf(Id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        await JSRuntime.InvokeVoidAsync("downloadPdfFile", base64, $"ตารางเรียนPDFรุ่นที่ {Id}.pdf");
+    }
+
+    private async Task ExportToPdfSecure()
+    {
+        var pdfBytes = await ClassStudieService.GenerateClassSchedulePdfSecure(Id);
+        var base64 = Convert.ToBase64String(pdfBytes);
+        await JSRuntime.InvokeVoidAsync("downloadPdfFile", base64, $"ตารางเรียนPDFรุ่นที่ {Id}.pdf");
+    }
+}
